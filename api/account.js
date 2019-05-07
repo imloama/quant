@@ -34,37 +34,34 @@ const authPassedSubject = new Subject()
 const sendAuth = function sendAuth (pool) {
     pool.messageQueue.pipe(
         filter(data => data.messageType === 'open'),
-    ).subscribe(
-        () => {
-            const reqParams = {
-                url: AccountWebSocket,
-                method: 'get',
-                params: {}
-            }
-            const data = addSignature(reqParams, awsParams)
+    ).subscribe(() => {
+        const reqParams = {
+            url: AccountWebSocket,
+            method: 'get',
+            params: {}
+        }
+        const data = addSignature(reqParams, awsParams)
 
-            data.op = 'auth'
+        data.op = 'auth'
 
-            pool.client.send(JSON.stringify(data))
-        },
-        EMPTY_ERR_HANDLER)
+        pool.send(data)
+    })
 
     pool.messageQueue.pipe(
         filter(data => data.op === OP_AUTH && !data[ERR_CODE]),
     ).subscribe(
-        data => authPassedSubject.next(data),
-        EMPTY_ERR_HANDLER)
+        data => authPassedSubject.next(data))
 
     return authPassedSubject
 }
 
-const accountReq = function accountReq (client, messageObservable) {
-    client.send(JSON.stringify({
+const accountReq = function accountReq (pool) {
+    pool.send({
         op: REQ,
         topic: REQ_ACCOUNTS_LIST
-    }))
+    })
 
-    return messageObservable.pipe(
+    return pool.messageQueue.pipe(
         filter(data => data.topic === REQ_ACCOUNTS_LIST && data.op === REQ),
         map(data => data.data),
         share()
@@ -72,7 +69,7 @@ const accountReq = function accountReq (client, messageObservable) {
 }
 
 //eslint-disable-next-line
-const accountSub = function accountSub(client, messageObservable, model, cid) {
+const accountSub = function accountSub(pool, model, cid) {
     if (!model) {
         //eslint-disable-next-line
         model = '0'
@@ -82,14 +79,14 @@ const accountSub = function accountSub(client, messageObservable, model, cid) {
         //eslint-disable-next-line
         cid = String(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER))
     }
-    client.send(JSON.stringify({
+    pool.send({
         op: SUB,
         model,
         cid,
         topic: OP_ACCOUNTS
-    }))
+    })
 
-    return messageObservable.pipe(
+    return pool.messageQueue.pipe(
         filter(msg => msg.topic === OP_ACCOUNTS && msg.op === NOTIFY),
         flatMap(msg => from(msg.data.list)),
         share()

@@ -5,6 +5,7 @@ import {
     NOTIFY,
     OpenOrders,
     OrderHistory,
+    Orders,
     POST,
     PlaceOrder,
     REQ,
@@ -20,6 +21,7 @@ import {
     flatMap,
     map,
     share,
+    tap,
     toArray
 }
 from 'rxjs/operators';
@@ -32,7 +34,7 @@ import {
 } from '../config';
 import rest from '../base/rest'
 
-const openOrderReq = function openOrderReq () {
+const openOrderReqByHttp = function openOrderReqByHttp () {
     let params = {
         // 'account-id': accountId,
         size: 500
@@ -66,7 +68,7 @@ const openOrderReq = function openOrderReq () {
     )
 }
 
-const orderPlaceReq = function orderPlaceReq (params) {
+const orderPlaceReqByHttp = function orderPlaceReqByHttp (params) {
     return from(
         rest.get(AccountAPI + PlaceOrder, addSignature({
             url: AccountAPI + PlaceOrder,
@@ -77,7 +79,7 @@ const orderPlaceReq = function orderPlaceReq (params) {
         share()
     )
 }
-const orderHistory = function orderHistory (params) {
+const orderHistoryReqByHttp = function orderHistoryReqByHttp (params) {
     return from(
         rest.get(AccountAPI + OrderHistory, addSignature({
             url: AccountAPI + OrderHistory,
@@ -103,43 +105,73 @@ const orderHistory = function orderHistory (params) {
         share()
     )
 }
-const orderDetailReq = function orderDetailReq (client, messageObservable, orderId) {
-    client.send(JSON.stringify({
-        op: REQ,
-        topic: REQ_ORDER_DETAIL,
-        'order-id': String(orderId)
-    }))
 
-    const subject = new Subject()
-    messageObservable.pipe(
-        filter(data => data.op === REQ && data.topic === REQ_ORDER_DETAIL),
+const orderDetailReqByHttp = function orderDetailReqByHttp (orderId) {
+    const url = AccountAPI + Orders + `/${orderId}`
+    return from(rest.get(url, addSignature({
+        url,
+        method: GET,
+        params: {}
+    }, awsParams))).pipe(
+        filter(data => data.status === 'ok'),
         map(data => {
             const result = data.data
 
             result['order-id'] = result.id
-            Reflect.deleteProperty(data, 'id')
+            Reflect.deleteProperty(result, 'id')
             result['order-amount'] = result.amount
             result['order-type'] = result.type
             result['order-source'] = result.source
             result['order-state'] = result.state
 
+            result['filled-amount'] = result['field-amount']
+            result['filled-cash-amount'] = result['field-cash-amount']
+            result['filled-fees'] = result['field-fees']
+
             return result
         })
-    ).subscribe(subject)
-
-    return subject
+    )
 }
 
-const orderSub = function orderSub (client, messageObservable, symbols) {
+const orderDetailReq = function orderDetailReq (pool, orderId) {
+    pool.send({
+        op: REQ,
+        topic: REQ_ORDER_DETAIL,
+        'order-id': String(orderId)
+    })
+
+    return pool.messageQueue.pipe(
+        filter(data => data.op === REQ && data.topic === REQ_ORDER_DETAIL),
+        map(data => {
+            const result = data.data
+
+            result['order-id'] = result.id
+            Reflect.deleteProperty(result, 'id')
+            result['order-amount'] = result.amount
+            result['order-type'] = result.type
+            result['order-source'] = result.source
+            result['order-state'] = result.state
+
+            result['filled-amount'] = result['field-amount']
+            result['filled-cash-amount'] = result['field-cash-amount']
+            result['filled-fees'] = result['field-fees']
+
+
+            return result
+        })
+    )
+}
+
+const orderSub = function orderSub (pool, symbols) {
     from(symbols).pipe().subscribe(
-        symbol => client.send(JSON.stringify({
+        symbol => pool.send({
             op: SUB,
             topic: `orders.${symbol}`
-        })),
+        }),
         EMPTY_ERR_HANDLER
     )
 
-    return messageObservable.pipe(
+    return pool.messageQueue.pipe(
         filter(msg => msg.op === NOTIFY && msg.topic.includes('orders')),
         map(data => data.data),
     )
@@ -147,9 +179,10 @@ const orderSub = function orderSub (client, messageObservable, symbols) {
 
 
 module.exports = {
-    openOrderReq,
-    orderPlaceReq,
     orderSub,
     orderDetailReq,
-    orderHistory
+    openOrderReqByHttp,
+    orderPlaceReqByHttp,
+    orderDetailReqByHttp,
+    orderHistoryReqByHttp
 }
