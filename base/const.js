@@ -23,6 +23,7 @@ module.exports = {
     OpenOrders: '/v1/order/openOrders',
     PlaceOrder: '/v1/order/orders/place',
     OrderHistory: '/v1/order/history',
+    Orders: '/v1/order/orders',
 
     GET: 'get',
     POST: 'post',

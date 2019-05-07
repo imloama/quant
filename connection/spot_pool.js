@@ -25,6 +25,21 @@ import {
     messagePoolAliveCheckInterval
 } from '../config.js'
 
+const pool = {
+    messageQueue: new Subject()
+}
+
+let client = null
+
+//for auto restart 
+const restartSubject = new Subject()
+restartSubject.subscribe(
+    () => {
+        console.log('websocket may be disconnected. try reconnect.')
+        main(restartSubject)
+    }
+)
+
 const heartbeat = function heartbeat (client, messageObservable, restartSubject) {
     let lastReceived = ''
 
@@ -36,20 +51,27 @@ const heartbeat = function heartbeat (client, messageObservable, restartSubject)
     ).subscribe(
         data => {
             if (lastReceived === 'timer' && data === 'timer') {
+                lastReceived = ''
                 subscription.unsubscribe()
                 // restart all 
                 restartSubject.next(1)
+
                 return
             }
 
             lastReceived = data
 
             try {
-                client.send(JSON.stringify({
-                    op: PONG,
-                    ts: data.ts
-                }))
+                if (data.ts) {
+                    const msg = {
+                        op: PONG,
+                        ts: data.ts
+                    }
+                    console.log('send message:', msg)
+                    client.send(JSON.stringify(msg))
+                }
             } catch (err) {
+                subscription.unsubscribe()
                 console.error(err)
                 restartSubject.next(2)
             }
@@ -61,15 +83,9 @@ const heartbeat = function heartbeat (client, messageObservable, restartSubject)
     )
 }
 
-const pool = {
-    messageQueue: new Subject()
-}
-
 const main = function main (restartSubject) {
-    pool.client = create(AccountWebSocket)
-    const messageObservable = buildObservable(pool.client)
-
-    heartbeat(pool.client, messageObservable, restartSubject)
+    client = create(AccountWebSocket)
+    const messageObservable = buildObservable(client)
 
     messageObservable.subscribe(
         data => {
@@ -78,21 +94,18 @@ const main = function main (restartSubject) {
         },
         EMPTY_ERR_HANDLER
     )
+
+    heartbeat(client, messageObservable, restartSubject)
 }
 
-//for auto restart 
-const restartSubject = new Subject()
-restartSubject.subscribe(
-    () => {
-        console.log('websocket may be disconnected. try reconnect.')
-        main(restartSubject)
-    },
-    EMPTY_ERR_HANDLER
-)
+
+pool.send = function send (messaage) {
+    console.log(`send message:${JSON.stringify(messaage)}`)
+    client.send(JSON.stringify(messaage))
+}
+
+pool.start = () => main(restartSubject)
 
 module.exports = {
-    pool,
-    start: () => {
-        main(restartSubject)
-    }
+    pool
 }

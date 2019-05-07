@@ -22,8 +22,8 @@ import {
 
 const account = {}
 
-const start = function start (pool) {
-    const accountReqSub = accountReq(pool.client, pool.messageQueue)
+const start = function start(pool) {
+    const accountReqSub = accountReq(pool)
     accountReqSub.pipe(
         take(1),
         //打散成多个账户
@@ -64,7 +64,7 @@ const start = function start (pool) {
 
     accountReqSub.pipe(
         //不能在一个ws里同时订阅可用和全部余额，脑残设计！！！
-        mergeMapTo(accountSub(pool.client, pool.messageQueue))
+        mergeMapTo(accountSub(pool))
     ).subscribe(
         data => {
             account[data['account-id']][data.currency].available = new BigNumber(data.balance)

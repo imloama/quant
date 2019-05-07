@@ -1,12 +1,4 @@
 import {
-    pool,
-    start as poolStart
-} from './connection/spot_pool'
-
-import {
-    EMPTY_ERR_HANDLER
-} from './base/const'
-import {
     awsParams
 } from './config';
 import {
@@ -20,31 +12,27 @@ import {
     start as orderSaveStart
 } from './handler/order_storage'
 import {
+    pool,
+} from './connection/spot_pool'
+import {
     sendAuth
 } from './api/account'
 import {
     tap
 } from 'rxjs/operators';
 
-const main = function main () {
+const main = function main() {
     //start message pool
-    poolStart()
+    pool.start()
 
     //send auth message
     const authPassedSubject = sendAuth(pool)
 
     //req account info and sub account change
-    authPassedSubject
-        .subscribe(
-            () => balanceStart(pool),
-            EMPTY_ERR_HANDLER
-        )
+    authPassedSubject.subscribe(() => balanceStart(pool))
 
 
-    authPassedSubject.subscribe(
-        () => orderSaveStart(pool),
-        EMPTY_ERR_HANDLER
-    )
+    authPassedSubject.subscribe(() => orderSaveStart(pool))
 }
 
 if (awsParams.key) {
