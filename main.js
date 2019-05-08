@@ -7,23 +7,33 @@ import {
 import {
     from
 } from 'rxjs';
+import {
+    init
+} from './base/types'
 import inquirer from 'inquirer'
 import {
     start as orderSaveStart
-} from './handler/order_storage'
+} from './handler/spot_order_storage'
 import {
-    pool,
+    pool
 } from './connection/spot_pool'
 import {
     sendAuth
 } from './api/account'
 import {
+    pool as spotMarketPool
+} from './connection/spot_market_pool'
+import {
     tap
 } from 'rxjs/operators';
 
-const main = function main() {
+const main = function main () {
+    //初始化数据库信息
+    init()
+
     //start message pool
     pool.start()
+    spotMarketPool.start()
 
     //send auth message
     const authPassedSubject = sendAuth(pool)
@@ -31,8 +41,10 @@ const main = function main() {
     //req account info and sub account change
     authPassedSubject.subscribe(() => balanceStart(pool))
 
-
+    //save order info to storage
     authPassedSubject.subscribe(() => orderSaveStart(pool))
+
+    // klineMain(spotMarketPool)
 }
 
 if (awsParams.key) {
