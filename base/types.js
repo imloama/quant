@@ -1,3 +1,5 @@
+/*eslint-disable*/
+
 import Sequelize from 'sequelize'
 import {
     db
@@ -50,6 +52,9 @@ const Orders = sequelize.define('order', {
     'created-at': {
         type: Sequelize.BIGINT
     },
+    'finished-at': {
+        type: Sequelize.BIGINT
+    },
     'order-type': {
         type: Sequelize.STRING
     },
@@ -85,16 +90,63 @@ const Orders = sequelize.define('order', {
         type: Sequelize.STRING
     }
 }, {
-    //eslint-disable-next-line
     indexes: [{
         unique: true,
         fields: ['order-id']
-    }
-]
+    }]
 })
 
-const init = function init () {
+const Kline = sequelize.define('kline', {
+    'symbol': {
+        type: Sequelize.STRING
+    },
+    'period': {
+        type: Sequelize.STRING
+    },
+    'amount': {
+        type: Sequelize.DECIMAL(30, 8)
+    },
+    'count': {
+        type: Sequelize.INTEGER
+    },
+    'id': {
+        type: Sequelize.INTEGER,
+        primaryKey: true
+    },
+    'open': {
+        type: Sequelize.DECIMAL(30, 8)
+    },
+
+    'close': {
+        type: Sequelize.DECIMAL(30, 8)
+    },
+
+    'low': {
+        type: Sequelize.DECIMAL(30, 8)
+    },
+
+    'high': {
+        type: Sequelize.DECIMAL(30, 8)
+    },
+
+    'vol': {
+        type: Sequelize.DECIMAL(30, 8)
+    }
+
+}, {
+    indexes: [{
+        fields: ['symbol', 'period']
+    }]
+})
+
+const init = function init() {
     Orders.sync({
+        // alert: true,
+        force: false
+    })
+
+    Kline.sync({
+
         force: false
     })
 
@@ -103,5 +155,6 @@ const init = function init () {
 module.exports = {
     sequelize,
     Orders,
+    Kline,
     init
 }

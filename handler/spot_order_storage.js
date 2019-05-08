@@ -1,6 +1,5 @@
 import {
     Orders,
-    init,
     sequelize
 } from '../base/types'
 import {
@@ -30,8 +29,6 @@ import Op from 'sequelize/lib/operators'
 let orderChangeSubscription = null
 
 const start = function start (pool) {
-    //初始化数据库信息
-    init()
 
     //req open orders info by rest api
     const orderReqSubject = openOrderReqByHttp()
