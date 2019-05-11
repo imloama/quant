@@ -101,7 +101,7 @@ const main = function main (restartSubject) {
 
 
 pool.send = function send (messaage) {
-    getLogger().info(`send message:${JSON.stringify(messaage)}`)
+    getLogger('debug').debug(`send message:${JSON.stringify(messaage)}`)
     client.send(JSON.stringify(messaage))
 }
 
