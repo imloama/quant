@@ -13,9 +13,12 @@ module.exports = {
         "sourceType": "module"
     },
     "rules": {
-        "max-statements": ["error", 25, {"ignoreTopLevelFunctions": true}],
+        "max-statements": ["error", 25, {
+            "ignoreTopLevelFunctions": true
+        }],
         'no-console': 'off',
         "require-jsdoc": "off",
+        'no-mixed-operators': "off",
         "accessor-pairs": "error",
         "array-bracket-newline": "error",
         "array-bracket-spacing": "error",
@@ -162,7 +165,6 @@ module.exports = {
         "no-loop-func": "error",
         "no-magic-numbers": "off",
         "no-misleading-character-class": "error",
-        "no-mixed-operators": "error",
         "no-mixed-requires": "error",
         "no-multi-assign": "error",
         "no-multi-spaces": "off",

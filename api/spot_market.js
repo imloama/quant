@@ -1,7 +1,13 @@
 import {
+    Subject,
+    from
+} from 'rxjs'
+import {
     filter,
     flatMap,
-    map
+    map,
+    take,
+    toArray
 } from 'rxjs/operators'
 
 const klineSub = function klineSub (pool, symbol, period = '1min') {
@@ -35,26 +41,40 @@ const marketDepthSub = function marketDepthSub (pool, symbol, step = 0) {
 }
 
 //max reponse size is 300
-const klineReq = function klineReq (pool, symbol, period = '1day', from, to) {
+const klineReq = function klineReq (pool, symbol, period = '1day', begin, end) {
     const req = `market.${symbol}.kline.${period}`
 
     const params = {
         req
     }
 
-    if (from) {
-        params.from = from
+    if (begin) {
+        params.from = begin
     }
-    if (to) {
-        params.to = to
+    if (end) {
+        params.to = end
     }
 
     pool.send(params)
 
-    return pool.messageQueue.pipe(
+    const subject = new Subject()
+
+    pool.messageQueue.pipe(
         filter(data => data.rep === req),
-        map(data => data.data)
-    )
+        take(1),
+        flatMap(data => from(data.data).pipe(
+            map(data => {
+                data.ts = data.id
+                Reflect.deleteProperty(data, 'id')
+
+                data.symbol = symbol
+                data.period = period
+                return data
+            }),
+            toArray()
+        ))).subscribe(subject)
+
+    return subject
 }
 
 /*
@@ -73,7 +93,7 @@ const klineReq = function klineReq (pool, symbol, period = '1day', from, to) {
  *                 amount: data.tick.asks[0][1]
  *             }
  *         })),
- *         // operators.tap(data => console.log(data)),
+ *         // operators.tap(data => getLogger().info(data)),
  *     )
  * }
  */

@@ -1,4 +1,7 @@
 import {
+    appendHistoryKlines
+} from './handler/spot_kline_storage'
+import {
     awsParams
 } from './config';
 import {
@@ -11,6 +14,7 @@ import {
     init
 } from './base/types'
 import inquirer from 'inquirer'
+import logger from './base/logger'
 import {
     start as orderSaveStart
 } from './handler/spot_order_storage'
@@ -28,23 +32,28 @@ import {
 } from 'rxjs/operators';
 
 const main = function main () {
+    logger.init()
     //初始化数据库信息
     init()
 
     //start message pool
-    pool.start()
     spotMarketPool.start()
+    pool.start()
 
-    //send auth message
+    
+      //send auth message
     const authPassedSubject = sendAuth(pool)
 
-    //req account info and sub account change
+    
+     //req account info and sub account change
     authPassedSubject.subscribe(() => balanceStart(pool))
 
-    //save order info to storage
+    
+      //save order info to storage
     authPassedSubject.subscribe(() => orderSaveStart(pool))
+     
 
-    // klineMain(spotMarketPool)
+    // appendHistoryKlines(spotMarketPool)
 }
 
 if (awsParams.key) {

@@ -19,10 +19,11 @@ import {
 import {
     from
 } from 'rxjs';
+import {getLogger} from 'log4js';
 
 const account = {}
 
-const start = function start(pool) {
+const start = function start (pool) {
     const accountReqSub = accountReq(pool)
     accountReqSub.pipe(
         take(1),
@@ -68,6 +69,9 @@ const start = function start(pool) {
     ).subscribe(
         data => {
             account[data['account-id']][data.currency].available = new BigNumber(data.balance)
+            if(Math.random() < 0.1){
+                getLogger().info(account)
+            }
         },
         EMPTY_ERR_HANDLER
     )
