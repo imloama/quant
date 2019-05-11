@@ -51,7 +51,7 @@ const autoFillHistoryInfo = function autoFillHistoryInfo (pool, symbol, period) 
                                  where symbol = "${symbol}" and period = "${period}"`)).pipe(
         map(data => [
             {
-                end: parseInt(data[0][0].min)
+                end: parseInt(data[0][0].min) - 1
             },
             {
                 begin: parseInt(data[0][0].max)
