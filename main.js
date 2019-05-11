@@ -48,12 +48,10 @@ const main = function main () {
      //req account info and sub account change
     authPassedSubject.subscribe(() => balanceStart(pool))
 
-    
       //save order info to storage
-    authPassedSubject.subscribe(() => orderSaveStart(pool))
+    authPassedSubject.subscribe(()=> orderSaveStart(pool))
      
-
-    // appendHistoryKlines(spotMarketPool)
+    appendHistoryKlines(spotMarketPool)
 }
 
 if (awsParams.key) {
