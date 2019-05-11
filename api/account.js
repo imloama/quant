@@ -1,6 +1,5 @@
 import {
     AccountWebSocket,
-    EMPTY_ERR_HANDLER,
     ERR_CODE,
     NOTIFY,
     OP_ACCOUNTS,
@@ -17,8 +16,7 @@ import {
     filter,
     flatMap,
     map,
-    share,
-    take
+    share
 }
 from 'rxjs/operators';
 
@@ -68,8 +66,7 @@ const accountReq = function accountReq (pool) {
     )
 }
 
-//eslint-disable-next-line
-const accountSub = function accountSub(pool, model, cid) {
+const accountSub = function accountSub (pool, model, cid) {
     if (!model) {
         //eslint-disable-next-line
         model = '0'

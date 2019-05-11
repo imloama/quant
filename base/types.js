@@ -109,9 +109,8 @@ const Kline = sequelize.define('kline', {
     'count': {
         type: Sequelize.INTEGER
     },
-    'id': {
-        type: Sequelize.INTEGER,
-        primaryKey: true
+    'ts': {
+        type: Sequelize.INTEGER
     },
     'open': {
         type: Sequelize.DECIMAL(30, 8)
@@ -135,7 +134,12 @@ const Kline = sequelize.define('kline', {
 
 }, {
     indexes: [{
+
         fields: ['symbol', 'period']
+    },
+    {
+        unique: true,
+        fields: ['symbol', 'period', 'ts']
     }]
 })
 

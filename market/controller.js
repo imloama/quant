@@ -7,7 +7,7 @@ const BigNumber = require('bignumber.js')
 const keepHeartbeat = function keepHeartbeat (messageObservable, client) {
     messageObservable.pipe(
         operators.filter(data => data.ping),
-        operators.tap(data => console.log(data)),
+        operators.tap(data => getLogger().info(data)),
     ).subscribe(
         data => {
             client.send(JSON.stringify({
@@ -57,7 +57,7 @@ const marketObservable = function marketObservable (messageObservable, topic) {
                 amount: data.tick.asks[0][1]
             }
         })),
-        // operators.tap(data => console.log(data)),
+        // operators.tap(data => getLogger().info(data)),
     )
 }
 

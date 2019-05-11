@@ -1,5 +1,8 @@
 const crypto = require('crypto')
+
 import * as url from 'url'
+
+import {getLogger} from  '../base/logger'
 
 const getUTCTime = function getUTCTime () {
     return new Date().toISOString().slice(0, -5)
@@ -24,7 +27,7 @@ const addSignature = function addSignature (queryParams, awsParams) {
         `${urlInfo.path}\n` +
         `${Object.keys(sorted).map(key => key + '=' + sorted[key]).join('&')}`
 
-    console.log(toBeSigned)
+    getLogger().info(toBeSigned)
     const signature = crypto.createHmac('sha256', awsParams.key).update(toBeSigned, 'utf8').digest('base64')
     queryParams.params.Signature = signature
 

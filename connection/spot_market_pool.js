@@ -20,6 +20,9 @@ import {
 from 'rxjs/operators';
 
 import {
+    getLogger
+} from '../base/logger'
+import {
     messagePoolAliveCheckInterval
 } from '../config.js'
 
@@ -33,7 +36,7 @@ let client = null
 const restartSubject = new Subject()
 restartSubject.subscribe(
     () => {
-        console.log('market websocket may be disconnected. try reconnect.')
+        getLogger().warn('market websocket may be disconnected. try reconnect.')
         main(restartSubject)
     }
 )
@@ -45,7 +48,7 @@ const heartbeat = function heartbeat (client, messageObservable, restartSubject)
         interval(messagePoolAliveCheckInterval).pipe(mapTo('timer')),
         messageObservable.pipe(filter(data => data.ping))
     ).pipe(
-        // tap(data => console.log(data))
+        // tap(data => getLogger().info(data))
     ).subscribe(
         data => {
             if (lastReceived === 'timer' && data === 'timer') {
@@ -64,7 +67,8 @@ const heartbeat = function heartbeat (client, messageObservable, restartSubject)
                     const msg = {
                         pong: data.ping
                     }
-                    console.log('send message:', msg)
+
+                    getLogger('debug').debug('send message:', msg)
                     client.send(JSON.stringify(msg))
                 }
             } catch (err) {
@@ -86,7 +90,7 @@ const main = function main (restartSubject) {
 
     messageObservable.subscribe(
         data => {
-            console.log(data)
+            getLogger('debug').debug(data)
             pool.messageQueue.next(data)
         },
         EMPTY_ERR_HANDLER
@@ -97,7 +101,7 @@ const main = function main (restartSubject) {
 
 
 pool.send = function send (messaage) {
-    console.log(`send message:${JSON.stringify(messaage)}`)
+    getLogger().info(`send message:${JSON.stringify(messaage)}`)
     client.send(JSON.stringify(messaage))
 }
 
