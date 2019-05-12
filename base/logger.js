@@ -6,7 +6,11 @@ const init = function init (){
     configure({
         appenders: {std: {type: 'console'}, 
             file: {type: 'file',
-                filename: config.log.file.name}},
+                filename: config.log.file.name,
+                maxLogSize: 10485760,
+                backups: 10,
+                pattern: '.yyyy-MM-dd',
+                compress: true}},
         categories: {debug: {
             appenders: ['std'],
             level: 'debug'
