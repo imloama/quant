@@ -88,11 +88,16 @@ const Orders = sequelize.define('order', {
 
     'filled-fees': {
         type: Sequelize.STRING
+    },
+    'task-id': {
+        type: Sequelize.BIGINT
     }
 }, {
     indexes: [{
         unique: true,
         fields: ['order-id']
+    },{
+        fields:['task-id']
     }]
 })
 
@@ -143,6 +148,37 @@ const Kline = sequelize.define('kline', {
     }]
 })
 
+const Tasks = sequelize.define('task',
+    {
+        'symbol': {
+            type: Sequelize.STRING
+        },
+        'start-price': {
+            type: Sequelize.STRING
+        },
+        'end-price': {
+            type: Sequelize.STRING
+        },
+        'grid-rate': {
+            type: Sequelize.STRING
+
+        },
+        'grid-count': {
+            type: Sequelize.STRING
+
+        },
+        'grid-amount': {
+            type: Sequelize.STRING
+        },
+        'grid-prices': {
+            type: Sequelize.STRING
+        }, 
+        'state': {
+            type: Sequelize.TINYINT //0 invalid 1 normal
+        }
+    }
+)
+
 const init = function init() {
     Orders.sync({
         // alert: true,
@@ -154,11 +190,16 @@ const init = function init() {
         force: false
     })
 
+    Tasks.sync({
+        force: false
+    })
+
 }
 
 module.exports = {
     sequelize,
     Orders,
     Kline,
+    Tasks,
     init
 }

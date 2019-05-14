@@ -1,3 +1,4 @@
+import {MarketAPI, MarketDetailMerged} from '../base/const'
 import {
     Subject,
     from
@@ -9,6 +10,8 @@ import {
     take,
     toArray
 } from 'rxjs/operators'
+
+import rest from '../base/rest'
 
 const klineSub = function klineSub (pool, symbol, period = '1min') {
 
@@ -41,6 +44,7 @@ const marketDepthSub = function marketDepthSub (pool, symbol, step = 0) {
 }
 
 //max reponse size is 300
+//eslint-disable-next-line
 const klineReq = function klineReq (pool, symbol, period = '1day', begin, end) {
     const req = `market.${symbol}.kline.${period}`
 
@@ -97,10 +101,18 @@ const klineReq = function klineReq (pool, symbol, period = '1day', begin, end) {
  *     )
  * }
  */
-
+const marketMergedDetailByHttp = function   marketMergedDetailByHttp (symbol){
+    return from(rest.get(MarketAPI + MarketDetailMerged, {
+        symbol
+    })).pipe(
+        filter(data => data.status === 'ok'),
+        map(data => data.tick)
+        )
+}
 
 module.exports = {
     klineSub,
     marketDepthSub,
-    klineReq
+    klineReq,
+    marketMergedDetailByHttp
 }

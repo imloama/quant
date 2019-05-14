@@ -25,6 +25,7 @@ import {
 } from '../api/order'
 
 import Op from 'sequelize/lib/operators'
+import {OrderState} from '../base/const';
 import {
 getLogger
 } from '../base/logger'
@@ -42,8 +43,8 @@ const start = function start (pool) {
             where: {
                 'order-state': {
                     [Op.notIn]: [
-                        'filled',
-                        'canceled'
+                        OrderState.filled,
+                        OrderState.canceled
                     ]
                 }
 
@@ -137,7 +138,7 @@ const start = function start (pool) {
         distinct(),
         toArray(),
         flatMap(symbols => orderSub(pool, symbols)),
-        tap(data => getLogger().info(JSON.stringify(data)))
+        // tap(data => getLogger().info(JSON.stringify(data)))
     ).subscribe(data => Orders.upsert(data))
 }
 

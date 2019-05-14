@@ -22,11 +22,28 @@ module.exports = {
     AccountAPI: 'https://api.huobi.pro',
     OpenOrders: '/v1/order/openOrders',
     PlaceOrder: '/v1/order/orders/place',
+    BatchCancelOrder: '/v1/order/orders/batchcancel',
     OrderHistory: '/v1/order/history',
     Orders: '/v1/order/orders',
+
+    MarketAPI: 'https://api.huobi.pro',
+    MarketDetailMerged: '/market/detail/merged',
 
     GET: 'get',
     POST: 'post',
 
-    EMPTY_ERR_HANDLER: err => {}
+    EMPTY_ERR_HANDLER: err => {},
+
+    OrderType: {
+        buyLimit: 'buy-limit',
+        sellLimit: 'sell-limit',
+        sellLimitMaker: 'sell-limit-maker',
+        buyLimitMaker: 'buy-limit-maker'
+    },
+    OrderState: {
+        filled: 'filled',         
+        submitted: 'submitted',      
+        partialFilled: 'partial-filled',
+        canceled: 'canceled'
+    }
 }

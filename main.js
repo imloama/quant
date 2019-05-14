@@ -11,6 +11,9 @@ import {
     from
 } from 'rxjs';
 import {
+    start as gridStart
+} from './handler/grid'
+import {
     init
 } from './base/types'
 import inquirer from 'inquirer'
@@ -40,16 +43,17 @@ const main = function main () {
     spotMarketPool.start()
     pool.start()
 
-    
       //send auth message
     const authPassedSubject = sendAuth(pool)
-
     
      //req account info and sub account change
     authPassedSubject.subscribe(() => balanceStart(pool))
 
       //save order info to storage
     authPassedSubject.subscribe(()=> orderSaveStart(pool))
+
+    //start grid stragy
+    authPassedSubject.subscribe(()=> gridStart(pool))
      
     appendHistoryKlines(spotMarketPool)
 }
