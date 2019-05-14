@@ -102,7 +102,12 @@ const main = function main (restartSubject) {
 
 pool.send = function send (messaage) {
     getLogger('debug').debug(`send message:${JSON.stringify(messaage)}`)
-    client.send(JSON.stringify(messaage))
+    try {
+        client.send(JSON.stringify(messaage))
+    } catch (err) {
+        console.error(err)
+        restartSubject.next(2)
+    }
 }
 
 pool.start = () => main(restartSubject)

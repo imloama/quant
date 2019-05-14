@@ -1,5 +1,6 @@
 import {
     AccountAPI,
+    BatchCancelOrder,
     EMPTY_ERR_HANDLER,
     GET,
     NOTIFY,
@@ -13,15 +14,11 @@ import {
     SUB
 } from '../base/const'
 import {
-    Subject,
-    from
-} from 'rxjs';
-import {
+    concatMap,
     filter,
     flatMap,
     map,
     share,
-    tap,
     toArray
 }
 from 'rxjs/operators';
@@ -32,6 +29,9 @@ import {
 import {
     awsParams
 } from '../config';
+import {
+    from
+} from 'rxjs';
 import rest from '../base/rest'
 
 const openOrderReqByHttp = function openOrderReqByHttp () {
@@ -70,15 +70,41 @@ const openOrderReqByHttp = function openOrderReqByHttp () {
 
 const orderPlaceReqByHttp = function orderPlaceReqByHttp (params) {
     return from(
-        rest.get(AccountAPI + PlaceOrder, addSignature({
+        rest.post(AccountAPI + PlaceOrder, params, addSignature({
             url: AccountAPI + PlaceOrder,
             method: POST,
-            params
+            params: {}
         }, awsParams))
     ).pipe(
         share()
     )
 }
+
+const orderBatchCancelByHttp = function  orderBatchCancelByHttp (orderIds) {
+    const batchIds = []
+
+    while(orderIds.length > 50){
+        batchIds.push(orderIds.slice(0, 51))
+        orderIds = orderIds.slice(51)
+    }
+    if(orderIds.length > 0){
+        batchIds.push(orderIds)
+    }
+
+    return from(batchIds).pipe(
+        concatMap(ids => rest.post(AccountAPI + BatchCancelOrder, {
+            'order-ids': ids
+        }, addSignature({
+            url: AccountAPI + BatchCancelOrder,
+            method: POST,
+            params: {}
+        }, awsParams))),
+        filter(data => data.status === 'ok'),
+        map(data => data.data),
+        share()
+    )
+}
+
 const orderHistoryReqByHttp = function orderHistoryReqByHttp (params) {
     return from(
         rest.get(AccountAPI + OrderHistory, addSignature({
@@ -184,5 +210,6 @@ module.exports = {
     openOrderReqByHttp,
     orderPlaceReqByHttp,
     orderDetailReqByHttp,
-    orderHistoryReqByHttp
+    orderHistoryReqByHttp,
+    orderBatchCancelByHttp
 }

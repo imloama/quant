@@ -40,11 +40,13 @@ const start = function start (pool) {
             tap(acc => {
                 acc.id = data.id
                 acc.state = data.state
+                acc['account-type'] = data.type
 
                 if (!acc.forzen) {
                     acc.forzen = new BigNumber(0)
                 }
                 acc.available = acc.trade
+                Reflect.deleteProperty(acc, 'trade')
             }),
         )),
         groupBy(acc => acc.id),
@@ -52,6 +54,7 @@ const start = function start (pool) {
             reduce((result, value) => {
                 result.id = value.id
                 result.state = value.state
+                result['account-type'] = value['account-type']
                 result[value.currency] = value
                 return result
             }, {}),
@@ -77,8 +80,18 @@ const start = function start (pool) {
     )
 }
 
+const getAccountIdByType = function getAccountIdByType (accountType){
+    for(let key in account){
+        if(account[key]['account-type'] === accountType){
+            return key
+        } 
+    }
+
+    return 0
+}
 
 module.exports = {
     account,
-    start
+    start,
+    getAccountIdByType
 }

@@ -46,18 +46,35 @@ const batchSaveOrUpdateOrders = function batchSaveOrUpdateOrders (klines) {
 
 const autoFillHistoryInfo = function autoFillHistoryInfo (pool, symbol, period) {
     //查看数据库中的情况
-    return from(sequelize.query(`select ifnull(min(ts), strftime("%s", "now")) as min, 
-                                        ifnull(max(ts), strftime("%s","now")) as max from klines 
-                                 where symbol = "${symbol}" and period = "${period}"`)).pipe(
-        map(data => [
-            {
-                end: parseInt(data[0][0].min) - 1
-            },
-            {
-                begin: parseInt(data[0][0].max)
-            }
-        ]),
-        mergeMap(data => from(data)),
+    return from(sequelize.query(`select ifnull(min(ts), 0) as min, 
+                                        ifnull(max(ts), 0) as max from klines 
+                                 where symbol = "${symbol}" and period = "${period}"`))
+            .pipe(
+                map(data => {
+                    const result = {
+                        max: parseInt(data[0][0].max),
+                        min: parseInt(data[0][0].min)
+                    }
+
+                    if(result.min === 0){
+                        result.min = new Date().getMilliseconds/1000
+                    }
+
+                    if(result.max === 0){
+                        result.max = new Date().getMilliseconds/1000
+                    }
+
+                    return result
+                }),
+                map(data => [
+                    {
+                        end: data.min - 1
+                    },
+                    {
+                        begin: data.max
+                    }
+                ]),
+            mergeMap(data => from(data)),
         concatMap(data => klineReq(pool, symbol, period, data.begin, data.end)),
         concatMap(datas => batchSaveOrUpdateOrders(datas))
     )
