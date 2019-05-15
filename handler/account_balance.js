@@ -1,3 +1,7 @@
+import {
+    Subject,
+    from
+} from 'rxjs';
 // 负责管理account balance情况，对外暴露account余额，变化情况
 import {
     accountReq,
@@ -16,14 +20,14 @@ import BigNumber from 'bignumber.js'
 import {
     EMPTY_ERR_HANDLER
 } from '../base/const'
-import {
-    from
-} from 'rxjs';
 import {getLogger} from 'log4js';
 
 const account = {}
 
 const start = function start (pool) {
+    getLogger().info('account balance monitor starting...')
+    const accountStartSub = new Subject()
+
     const accountReqSub = accountReq(pool)
     accountReqSub.pipe(
         take(1),
@@ -66,6 +70,10 @@ const start = function start (pool) {
         err => console.error(err)
     )
 
+    accountReqSub.subscribe(
+        ()=> accountStartSub.next(1)
+    )
+    
     accountReqSub.pipe(
         //不能在一个ws里同时订阅可用和全部余额，脑残设计！！！
         mergeMapTo(accountSub(pool))
@@ -78,6 +86,8 @@ const start = function start (pool) {
         },
         EMPTY_ERR_HANDLER
     )
+
+    return accountStartSub
 }
 
 const getAccountIdByType = function getAccountIdByType (accountType){

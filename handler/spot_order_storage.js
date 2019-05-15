@@ -3,6 +3,11 @@ import {
     sequelize
 } from '../base/types'
 import {
+    Subject,
+    from,
+    zip
+} from 'rxjs';
+import {
     concatMap,
     distinct,
     filter,
@@ -13,10 +18,6 @@ import {
     tap,
     toArray
 } from 'rxjs/operators';
-import {
-    from,
-    zip
-} from 'rxjs';
 import {
     openOrderReqByHttp,
     orderDetailReqByHttp,
@@ -30,13 +31,7 @@ import {
 getLogger
 } from '../base/logger'
 
-let orderChangeSubscription = null
-
-const start = function start (pool) {
-
-    //req open orders info by rest api
-    const orderReqSubject = openOrderReqByHttp()
-
+const checkOpenOrderInDB = function checkOpenOrderInDB (orderReqSubject){
     //load orders from db
     const openOrdersInDB = from(sequelize.authenticate()).pipe(
         mergeMapTo(from(Orders.findAll({
@@ -52,7 +47,7 @@ const start = function start (pool) {
         }))))
 
     //find out not opend 
-    zip(
+    return zip(
         orderReqSubject.pipe(
             flatMap(data => from(data)),
             map(data => data['order-id']),
@@ -73,15 +68,15 @@ const start = function start (pool) {
             where: {
                 'order-id': data['order-id']
             }
-        })))
-    ).subscribe(
-        () => {},
-        err => console.error(err)
+        }))),
+        toArray()
     )
+}
 
-
-    //query and save orders after last order in db till now.
-    from(sequelize.authenticate()).pipe(
+//tODO not all history orders. need to improve
+const saveMissedOrders = function saveMissedOrders (){
+ //query and save orders after last order in db till now.
+    return from(sequelize.authenticate()).pipe(
         mergeMapTo(from(Orders.findOne({
             order: [
                 [
@@ -90,44 +85,70 @@ const start = function start (pool) {
                 ]
             ]
         }))),
-        filter(data => data),
+        map(data => {
+            if (!data){
+                return {
+                    'created-at': 0
+                }
+            }
+            return data
+        }),
+        // filter(data => data),
         tap(data => getLogger().info(`prepare to load history after:${data['created-at']}`)),
         flatMap(data => orderHistoryReqByHttp({
             'start-time': data['created-at'] + 1,
             size: 1000
         })),
-        flatMap(data => from(data))
-    ).subscribe(
-        data => {
-            Orders.findCreateFind({
+        flatMap(data => from(data)),
+        concatMap(data => from(Orders.findCreateFind({
+            where: {
+                'order-id': data['order-id']
+            },
+            defaults: data
+        }))),
+        toArray()
+    )
+}
+
+const saveOpenOrders = function saveOpenOrders (orderReqSubject){
+    return  zip(orderReqSubject, sequelize.authenticate()).pipe(
+            tap(() => getLogger().info('save open orders')),
+            flatMap(([data]) => from(data)),
+            concatMap(data => from(Orders.findCreateFind({
                 where: {
                     'order-id': data['order-id']
                 },
                 defaults: data
-            })
+            }))),
+            toArray()
+        )
+}
 
+let orderChangeSubscription = null
+
+const start = function start (pool) {
+    getLogger().info('order storage starting...')
+
+    const dbOrderSubject = new Subject()
+    //req open orders info by rest api
+    const orderReqSubject = new Subject() 
+    openOrderReqByHttp().subscribe(orderReqSubject)
+
+    const dbOpenOrderObser = checkOpenOrderInDB(orderReqSubject)
+
+    const dbSaveMissedOrdersObser = saveMissedOrders()
+    zip(dbOpenOrderObser, dbSaveMissedOrdersObser).pipe(
+        mergeMapTo(saveOpenOrders(orderReqSubject))
+    ).subscribe(
+        data => {
+            dbOrderSubject.next(1)
         },
-        err => console.error(err)
+        err => getLogger().error(err)
     )
 
-
-    //save open orders
-    zip(orderReqSubject, sequelize.authenticate())
-        .pipe(
-            tap(() => getLogger().info('save open orders')),
-            flatMap(([data]) => from(data)),
-        ).subscribe(
-            data => {
-                Orders.findCreateFind({
-                    where: {
-                        'order-id': data['order-id']
-                    },
-                    defaults: data
-                })
-            },
-            err => console.error(err))
-
-    //sub order change
+    /*
+     *sub order change
+     */
     if (orderChangeSubscription) {
         orderChangeSubscription.unsubscribe()
     }
@@ -140,6 +161,8 @@ const start = function start (pool) {
         flatMap(symbols => orderSub(pool, symbols)),
         // tap(data => getLogger().info(JSON.stringify(data)))
     ).subscribe(data => Orders.upsert(data))
+
+    return dbOrderSubject
 }
 
 module.exports = {

@@ -45,5 +45,14 @@ module.exports = {
         submitted: 'submitted',      
         partialFilled: 'partial-filled',
         canceled: 'canceled'
-    }
+    },
+
+    BaseCurrency: [
+        'btc',
+        'usdt',
+        'husd',
+        'eth',
+        'ht',
+        'eos'
+    ]
 }

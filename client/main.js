@@ -41,6 +41,7 @@ const main = function main (){
           map(params => {
               const rate = getRate(params['start-price'], params['end-price'], params['grid-count'])
               params['grid-rate'] =rate.toFixed(4)
+
               return params 
           }),
           flatMap(data => from(inquirer.prompt([
