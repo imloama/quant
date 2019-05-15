@@ -79,10 +79,17 @@ const start = function start (pool) {
         mergeMapTo(accountSub(pool))
     ).subscribe(
         data => {
-            account[data['account-id']][data.currency].available = new BigNumber(data.balance)
-            if(Math.random() < 0.1){
-                getLogger().info(account)
+            getLogger('debug').debug(JSON.stringify(data))
+            try{
+                account[data['account-id']][data.currency].available = new BigNumber(data.balance)
+                if(Math.random() < 0.1){
+                    getLogger().info(account)
+                }
+            }catch(err){
+                getLogger().error(err)
+                throw err
             }
+            
         },
         EMPTY_ERR_HANDLER
     )
