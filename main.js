@@ -1,4 +1,14 @@
 import {
+    from,
+    zip
+} from 'rxjs';
+import {
+    mergeMap,
+    mergeMapTo,
+    tap
+} from 'rxjs/operators';
+
+import {
     appendHistoryKlines
 } from './handler/spot_kline_storage'
 import {
@@ -7,9 +17,7 @@ import {
 import {
     start as balanceStart
 } from './handler/account_balance'
-import {
-    from
-} from 'rxjs';
+import {getLogger} from 'log4js';
 import {
     start as gridStart
 } from './handler/grid'
@@ -30,9 +38,6 @@ import {
 import {
     pool as spotMarketPool
 } from './connection/spot_market_pool'
-import {
-    tap
-} from 'rxjs/operators';
 
 const main = function main () {
     logger.init()
@@ -46,14 +51,17 @@ const main = function main () {
       //send auth message
     const authPassedSubject = sendAuth(pool)
     
-     //req account info and sub account change
-    authPassedSubject.subscribe(() => balanceStart(pool))
-
-      //save order info to storage
-    authPassedSubject.subscribe(()=> orderSaveStart(pool))
-
-    //start grid stragy
-    authPassedSubject.subscribe(()=> gridStart(pool))
+    authPassedSubject.pipe(
+        mergeMap(() => zip(
+            //req account info and sub account change
+            balanceStart(pool),
+            //save order info to storage
+            orderSaveStart(pool))),
+    ).subscribe(
+        //start grid stragy
+        ()=> gridStart(pool),
+        err => getLogger().error(err)
+    )
      
     appendHistoryKlines(spotMarketPool)
 }

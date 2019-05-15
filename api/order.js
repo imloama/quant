@@ -19,6 +19,7 @@ import {
     flatMap,
     map,
     share,
+    tap,
     toArray
 }
 from 'rxjs/operators';
@@ -32,6 +33,7 @@ import {
 import {
     from
 } from 'rxjs';
+import {getLogger} from 'log4js';
 import rest from '../base/rest'
 
 const openOrderReqByHttp = function openOrderReqByHttp () {
@@ -64,7 +66,6 @@ const openOrderReqByHttp = function openOrderReqByHttp () {
             return data
         }),
         toArray(),
-        share()
     )
 }
 
@@ -188,8 +189,11 @@ const orderDetailReq = function orderDetailReq (pool, orderId) {
     )
 }
 
-const orderSub = function orderSub (pool, symbols) {
-    from(symbols).pipe().subscribe(
+const orderSub = function orderSub (pool, symbols, filterWithSymbol = false) {
+    const symbolMap = new Map()
+    from(symbols).pipe(
+        tap(symbol => symbolMap.set(symbol, true))
+    ).subscribe(
         symbol => pool.send({
             op: SUB,
             topic: `orders.${symbol}`
@@ -198,7 +202,9 @@ const orderSub = function orderSub (pool, symbols) {
     )
 
     return pool.messageQueue.pipe(
-        filter(msg => msg.op === NOTIFY && msg.topic.includes('orders')),
+        filter(msg => msg.op === NOTIFY && 
+            msg.topic.includes('orders') && 
+            (!filterWithSymbol || symbolMap.get(msg.topic.split('.')[1]))),
         map(data => data.data),
     )
 }

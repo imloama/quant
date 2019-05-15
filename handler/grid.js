@@ -1,13 +1,14 @@
-import {OrderState, OrderType} from '../base/const'
+import {OrderState, OrderType, SUB} from '../base/const'
 import {Orders, Tasks, sequelize} from '../base/types'
+import {Subject, from, of, zip} from 'rxjs';
+import {account, getAccountIdByType} from '../handler/account_balance'
 import {concatMap, delay, distinct, filter, flatMap, map, mergeMap, share, tap, toArray} from 'rxjs/operators';
-import {from, of, zip} from 'rxjs';
 import {orderBatchCancelByHttp, orderDetailReqByHttp, orderPlaceReqByHttp, orderSub} from '../api/order'
 
 import BigNumber from 'bignumber.js';
 import Op from 'sequelize/lib/operators'
-import {getAccountIdByType} from '../handler/account_balance'
 import {getLogger} from 'log4js';
+import {getSymbolInfo} from '../base/common'
 import {marketMergedDetailByHttp} from '../api/spot_market'
 
 //checkout task 0 closed 1 normal
@@ -36,14 +37,56 @@ const getTaskOpenOrders = function getTaskOpenOrders (taskId){
                 }
             }
         })),
-        mergeMap(orders => from(orders)),
-        concatMap(order => orderDetailReqByHttp(order['order-id'])),
-        filter(order => order['order-state'] === OrderState.submitted || order['order-state'] === OrderState.partialFilled),
-        toArray()
+
+        /*
+         * mergeMap(orders => from(orders)),
+         * concatMap(order => orderDetailReqByHttp(order['order-id'])),
+         * filter(order => order['order-state'] === OrderState.submitted || order['order-state'] === OrderState.partialFilled),
+         * toArray()
+         */
         )
 }
 
-const handleTask = function handleTask (task, orders) {
+
+const checkAccountBalanceBeforePlaceOrder = function checkAccountBalanceBeforePlaceOrder (placeOrderParams){
+    const balanceNeed = new Map()
+
+    placeOrderParams.forEach(order => {
+        const currencies =getSymbolInfo(order.symbol) 
+        if(!balanceNeed.has(currencies.base)){
+            balanceNeed.set(currencies.base, new BigNumber(0))
+        }
+        if(!balanceNeed.has(currencies.trader)){
+            balanceNeed.set(currencies.trader, new BigNumber(0))
+        }
+
+        if(order.type === OrderType.buyLimit || order.type=== OrderType.buyLimitMaker){
+            balanceNeed.set(currencies.base, balanceNeed.get(currencies.base).plus(new BigNumber(order.price).times(new BigNumber(order.amount))))
+        }else if(order.type=== OrderType.sellLimit || order.type=== OrderType.sellLimitMaker){
+            balanceNeed.set(currencies.trader, balanceNeed.get(currencies.trader).plus(new BigNumber(order.amount)))
+        }else {
+            throw new Error(`unxepected order type:${order}`)
+        }
+    })
+
+    const accountId = getAccountIdByType('spot')
+    for(let key of balanceNeed.keys()){
+        const accountBalance = account[accountId][key]
+        if(!accountBalance){
+            getLogger().warn(`orders need ${key} ${balanceNeed.get(key).toFixed()}, but we have none in our spot account`)
+            return false
+        }
+
+        if(new BigNumber(accountBalance.available).lt(balanceNeed.get(key))){
+            getLogger().warn(`orders need ${key} ${balanceNeed.get(key).toFixed()}, but we have ${accountBalance.available} in our spot account`)
+            return false
+        }
+    }
+
+    return true
+}
+
+const placeOrdersByTask = function placeOrdersByTask (task, orders) {
     const gridPrices = task['grid-prices'].split(',')
     const orderPrices = new Map()
 
@@ -70,7 +113,9 @@ const handleTask = function handleTask (task, orders) {
 
     if(lackPrices.length === 0){
         //wired should be at least one for the gap.
-        getLogger().warn(`task ${task} is wired. no lack price for it.`)
+        getLogger().warn(`task ${task} has no lack price for it.`)
+    }else {
+        getLogger().warn(`task ${task} lack price: ${lackPrices}`)
     }
 
     //get current price
@@ -87,7 +132,9 @@ const handleTask = function handleTask (task, orders) {
             ? OrderType.buyLimitMaker 
              : OrderType.sellLimitMaker
             })))),
-         //todo should I check if balance enough
+        toArray(),
+        filter(orders => checkAccountBalanceBeforePlaceOrder(orders)),
+        mergeMap(orders => from(orders)),
         concatMap(order => orderPlaceReqByHttp(order)),
         filter(data => data.status === 'ok'),
         map(data => data.data),
@@ -223,7 +270,6 @@ const handleOpenTasks = function handleOpenTasks (accountPool){
         subscriptions.unsubscribe()
     }
 
-
     //open tasks
     const taskObservable = getTasksByState(1)
 
@@ -232,38 +278,34 @@ const handleOpenTasks = function handleOpenTasks (accountPool){
         map(task => task.symbol),
         distinct(),
         toArray(),
-        mergeMap(symbol => orderSub(accountPool, symbol)),
+        mergeMap(symbol => orderSub(accountPool, symbol, true)),
         filter(order => order['order-state'] === OrderState.filled)
-    ).subscribe(data => orderSubHandler(data))
+    ).subscribe(data =>{
+        orderSubHandler(data)
+    })
 
     taskObservable.pipe(
-        //make sure sub success
-        delay(1000),
+        delay(2000),
         mergeMap(tasks => from(tasks)),
         concatMap(task => zip(of(task), getTaskOpenOrders(task.id))),
         concatMap(([
                 task,
                 orders
-                ])=> handleTask(task, orders))
+                ])=> placeOrdersByTask(task, orders))
     ).subscribe(
-        data => console.log(data),
-        err => console.error(err)
+        data => getLogger().info(data),
+        err => getLogger().error(err)
     )
 }
 
 //after account pool authed
 const start = function start (accountPool){
+    getLogger().info('grid strategy starting...')
 
-    of(1).pipe(
-        delay(3000)
-    ).subscribe(
-        ()=> {
-            handleOpenTasks(accountPool)
+    handleOpenTasks(accountPool)
 
             //cancel closed tasks
-            handleClosedTasks()
-        }
-    )
+    handleClosedTasks()
 }
 
 module.exports = {
