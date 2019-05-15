@@ -80,17 +80,14 @@ const start = function start (pool) {
     ).subscribe(
         data => {
             getLogger('debug').debug(JSON.stringify(data))
-            try{
-                account[data['account-id']][data.currency].available = new BigNumber(data.balance)
-                if(Math.random() < 0.1){
-                    getLogger().info(account)
-                }
-            }catch(err){
-                getLogger().error(err)
-                getLogger().info(account)
-                throw err
+            if(!account[data['account-id']][data.currency]){
+                account[data['account-id']][data.currency] = {}
             }
+            account[data['account-id']][data.currency].available = new BigNumber(data.balance)
             
+            if(Math.random() < 0.05){
+                getLogger().info(account)
+            }
         },
         EMPTY_ERR_HANDLER
     )
