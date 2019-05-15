@@ -87,6 +87,7 @@ const start = function start (pool) {
                 }
             }catch(err){
                 getLogger().error(err)
+                getLogger().info(account)
                 throw err
             }
             
