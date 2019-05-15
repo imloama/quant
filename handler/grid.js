@@ -7,6 +7,7 @@ import {orderBatchCancelByHttp, orderDetailReqByHttp, orderPlaceReqByHttp, order
 
 import BigNumber from 'bignumber.js';
 import Op from 'sequelize/lib/operators'
+import {dingding} from '../notifier';
 import {getLogger} from 'log4js';
 import {getSymbolInfo} from '../base/common'
 import {marketMergedDetailByHttp} from '../api/spot_market'
@@ -279,6 +280,7 @@ const handleOpenTasks = function handleOpenTasks (accountPool){
         distinct(),
         toArray(),
         mergeMap(symbol => orderSub(accountPool, symbol, true)),
+        tap(dingding.sendMsg),
         filter(order => order['order-state'] === OrderState.filled)
     ).subscribe(data =>{
         orderSubHandler(data)
