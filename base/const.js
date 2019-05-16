@@ -1,58 +1,56 @@
-module.exports = {
-    MarketWebSocket: 'wss://api.huobi.pro/ws',
-    AccountWebSocket: 'wss://api.huobi.pro/ws/v1',
+ 
+export const    MarketWebSocket= 'wss://api.huobi.pro/ws'
+export const    AccountWebSocket= 'wss://api.huobi.pro/ws/v1'
 
-    OP: 'op',
-    OP_AUTH: 'auth',
-    OP_ACCOUNTS: 'accounts',
+export const    OP= 'op'
+export const    OP_AUTH= 'auth'
+export const    OP_ACCOUNTS= 'accounts'
 
-    REQ: 'req',
-    REQ_ACCOUNTS_LIST: 'accounts.list',
-    REQ_ORDER_DETAIL: 'orders.detail',
+export const    REQ= 'req'
+export const    REQ_ACCOUNTS_LIST= 'accounts.list'
+export const    REQ_ORDER_DETAIL= 'orders.detail'
 
-    NOTIFY: 'notify',
+export const    NOTIFY= 'notify'
 
-    PING: 'ping',
-    PONG: 'pong',
+export const    PING= 'ping'
+export const    PONG= 'pong'
 
-    SUB: 'sub',
+export const    SUB= 'sub'
 
-    ERR_CODE: 'err-code',
+export const    ERR_CODE= 'err-code'
 
-    AccountAPI: 'https://api.huobi.pro',
-    OpenOrders: '/v1/order/openOrders',
-    PlaceOrder: '/v1/order/orders/place',
-    BatchCancelOrder: '/v1/order/orders/batchcancel',
-    OrderHistory: '/v1/order/history',
-    Orders: '/v1/order/orders',
+export const    AccountAPI= 'https://api.huobi.pro'
+export const    OpenOrders= '/v1/order/openOrders'
+export const    PlaceOrder= '/v1/order/orders/place'
+export const    BatchCancelOrder= '/v1/order/orders/batchcancel'
+export const    OrderHistory= '/v1/order/history'
+export const    Orders= '/v1/order/orders'
 
-    MarketAPI: 'https://api.huobi.pro',
-    MarketDetailMerged: '/market/detail/merged',
+export const    MarketAPI= 'https://api.huobi.pro'
+export const    MarketDetailMerged= '/market/detail/merged'
 
-    GET: 'get',
-    POST: 'post',
+export const    GET= 'get'
+export const    POST= 'post'
 
-    EMPTY_ERR_HANDLER: err => {},
+export const    EMPTY_ERR_HANDLER= () => {}
 
-    OrderType: {
-        buyLimit: 'buy-limit',
-        sellLimit: 'sell-limit',
-        sellLimitMaker: 'sell-limit-maker',
-        buyLimitMaker: 'buy-limit-maker'
-    },
-    OrderState: {
-        filled: 'filled',         
-        submitted: 'submitted',      
-        partialFilled: 'partial-filled',
-        canceled: 'canceled'
-    },
-
-    BaseCurrency: [
-        'btc',
-        'usdt',
-        'husd',
-        'eth',
-        'ht',
-        'eos'
-    ]
+export const    OrderType= {
+    buyLimit: 'buy-limit',
+    sellLimit: 'sell-limit',
+    sellLimitMaker: 'sell-limit-maker',
+    buyLimitMaker: 'buy-limit-maker'
 }
+export const    OrderState= {
+    filled: 'filled',         
+    submitted: 'submitted',      
+    partialFilled: 'partial-filled',
+    canceled: 'canceled'
+}
+export const    BaseCurrency= [
+    'btc',
+    'usdt',
+    'husd',
+    'eth',
+    'ht',
+    'eos'
+]

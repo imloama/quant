@@ -1,19 +1,10 @@
 import {
-    AccountWebSocket,
-    EMPTY_ERR_HANDLER,
-    PING,
-    PONG
-} from '../base/const'
-import {
     Subject,
     from,
     interval,
     merge
 } from 'rxjs';
-import {
-    buildObservable,
-    create
-} from '../base/ws';
+import {cons, ws} from '../base';
 import {
     delay,
     filter,
@@ -21,10 +12,9 @@ import {
 }
 from 'rxjs/operators';
 
-import{getLogger} from '../base/logger'
-import {
-    messagePoolAliveCheckInterval
-} from '../config.js'
+import config from '../config';
+import {create} from 'domain';
+import {getLogger} from 'log4js';
 
 const pool = {
     messageQueue: new Subject()
@@ -45,8 +35,8 @@ const heartbeat = function heartbeat (client, messageObservable, restartSubject)
     let lastReceived = ''
 
     const subscription = merge(
-        interval(messagePoolAliveCheckInterval).pipe(mapTo('timer')),
-        messageObservable.pipe(filter(data => data.op === PING))
+        interval(config.messagePoolAliveCheckInterval).pipe(mapTo('timer')),
+        messageObservable.pipe(filter(data => data.op === cons.PING))
     ).pipe(
         // tap(data => getLogger().info(data))
     ).subscribe(
@@ -65,7 +55,7 @@ const heartbeat = function heartbeat (client, messageObservable, restartSubject)
             try {
                 if (data.ts) {
                     const msg = {
-                        op: PONG,
+                        op: cons.PONG,
                         ts: data.ts
                     }
                     getLogger().info('send message:', msg)
@@ -85,15 +75,16 @@ const heartbeat = function heartbeat (client, messageObservable, restartSubject)
 }
 
 const main = function main (restartSubject) {
-    client = create(AccountWebSocket)
-    const messageObservable = buildObservable(client)
+    client = ws.create(cons.AccountWebSocket)
+
+    const messageObservable = ws.buildObservable(client)
 
     messageObservable.subscribe(
         data => {
             getLogger().info(data)
             pool.messageQueue.next(data)
         },
-        EMPTY_ERR_HANDLER
+        cons.EMPTY_ERR_HANDLER
     )
 
     heartbeat(client, messageObservable, restartSubject)

@@ -1,12 +1,9 @@
+// 负责管理account balance情况，对外暴露account余额，变化情况
+
 import {
     Subject,
     from
 } from 'rxjs';
-// 负责管理account balance情况，对外暴露account余额，变化情况
-import {
-    accountReq,
-    accountSub
-} from '../api/account'
 import {
     flatMap,
     groupBy,
@@ -17,9 +14,8 @@ import {
 } from 'rxjs/operators';
 
 import BigNumber from 'bignumber.js'
-import {
-    EMPTY_ERR_HANDLER
-} from '../base/const'
+import {account as acc} from '../api';
+import {cons} from '../base';
 import {getLogger} from 'log4js';
 
 const account = {}
@@ -28,7 +24,8 @@ const start = function start (pool) {
     getLogger().info('account balance monitor starting...')
     const accountStartSub = new Subject()
 
-    const accountReqSub = accountReq(pool)
+
+    const accountReqSub = acc.accountReq(pool)
     accountReqSub.pipe(
         take(1),
         //打散成多个账户
@@ -76,7 +73,7 @@ const start = function start (pool) {
     
     accountReqSub.pipe(
         //不能在一个ws里同时订阅可用和全部余额，脑残设计！！！
-        mergeMapTo(accountSub(pool))
+        mergeMapTo(acc.accountSub(pool))
     ).subscribe(
         data => {
             getLogger('debug').debug(JSON.stringify(data))
@@ -89,7 +86,7 @@ const start = function start (pool) {
                 getLogger().info(account)
             }
         },
-        EMPTY_ERR_HANDLER
+        cons.EMPTY_ERR_HANDLER
     )
 
     return accountStartSub

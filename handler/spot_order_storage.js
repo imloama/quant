@@ -18,15 +18,10 @@ import {
     tap,
     toArray
 } from 'rxjs/operators';
-import {
-    openOrderReqByHttp,
-    orderDetailReqByHttp,
-    orderHistoryReqByHttp,
-    orderSub
-} from '../api/order'
 
 import Op from 'sequelize/lib/operators'
 import {OrderState} from '../base/const';
+import {order as apiOrder} from '../api';
 import {
 getLogger
 } from '../base/logger'
@@ -62,7 +57,7 @@ const checkOpenOrderInDB = function checkOpenOrderInDB (orderReqSubject){
             filter(item => reqOrder.indexOf(item['order-id']) < 0),
         )),
         tap(data => getLogger().info(`open history orders ${data['order-id']}`)),
-        concatMap(order => orderDetailReqByHttp(order['order-id'])),
+        concatMap(order => apiOrder.orderDetailReqByHttp(order['order-id'])),
         tap(data => getLogger().info('open history orders result', data)),
         flatMap(data => from(Orders.update(data, {
             where: {
@@ -95,7 +90,7 @@ const saveMissedOrders = function saveMissedOrders (){
         }),
         // filter(data => data),
         tap(data => getLogger().info(`prepare to load history after:${data['created-at']}`)),
-        flatMap(data => orderHistoryReqByHttp({
+        flatMap(data => apiOrder.orderHistoryReqByHttp({
             'start-time': data['created-at'] + 1,
             size: 1000
         })),
@@ -132,7 +127,7 @@ const start = function start (pool) {
     const dbOrderSubject = new Subject()
     //req open orders info by rest api
     const orderReqSubject = new Subject() 
-    openOrderReqByHttp().subscribe(orderReqSubject)
+    apiOrder.openOrderReqByHttp().subscribe(orderReqSubject)
 
     const dbOpenOrderObser = checkOpenOrderInDB(orderReqSubject)
 
@@ -140,7 +135,7 @@ const start = function start (pool) {
     zip(dbOpenOrderObser, dbSaveMissedOrdersObser).pipe(
         mergeMapTo(saveOpenOrders(orderReqSubject))
     ).subscribe(
-        data => {
+        () => {
             dbOrderSubject.next(1)
         },
         err => getLogger().error(err)
@@ -158,7 +153,7 @@ const start = function start (pool) {
         map(data => data.symbol),
         distinct(),
         toArray(),
-        flatMap(symbols => orderSub(pool, symbols)),
+        flatMap(symbols => apiOrder.orderSub(pool, symbols)),
         // tap(data => getLogger().info(JSON.stringify(data)))
     ).subscribe(data => Orders.upsert(data))
 

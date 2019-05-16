@@ -1,21 +1,19 @@
-import {OrderState, OrderType, SUB} from '../base/const'
-import {Orders, Tasks, sequelize} from '../base/types'
 import {Subject, from, of, zip} from 'rxjs';
-import {account, getAccountIdByType} from '../handler/account_balance'
+import {account, getAccountIdByType} from './account_balance'
+import {account as apiAccount, order as apiOrder, spotMarket as apiSpotMarket} from '../api';
 import {concatMap, delay, distinct, filter, flatMap, map, mergeMap, share, tap, toArray} from 'rxjs/operators';
-import {orderBatchCancelByHttp, orderDetailReqByHttp, orderPlaceReqByHttp, orderSub} from '../api/order'
+import {cons, types} from '../base';
 
 import BigNumber from 'bignumber.js';
 import Op from 'sequelize/lib/operators'
 import {dingding} from '../notifier';
 import {getLogger} from 'log4js';
 import {getSymbolInfo} from '../base/common'
-import {marketMergedDetailByHttp} from '../api/spot_market'
 
 //checkout task 0 closed 1 normal
 const getTasksByState = function getTasksByState (state){
-    return from(sequelize.authenticate()).pipe(
-        mergeMap(()=>  from(Tasks.findAll({
+    return from(types.sequelize.authenticate()).pipe(
+        mergeMap(()=>  from(types.Tasks.findAll({
             where: {
                 state
             }
@@ -26,14 +24,14 @@ const getTasksByState = function getTasksByState (state){
 
 //check task orders state after all orders ready
 const getTaskOpenOrders = function getTaskOpenOrders (taskId){
-    return from(sequelize.authenticate()).pipe(
-        mergeMap(()=>  Orders.findAll({
+    return from(types.sequelize.authenticate()).pipe(
+        mergeMap(()=>  types.Orders.findAll({
             where: {
                 'task-id': taskId,
                 'order-state': {
                     [Op.or]: [
-                        OrderState.submitted,
-                        OrderState.partialFilled
+                        cons.OrderState.submitted,
+                        cons.OrderState.partialFilled
                     ]
                 }
             }
@@ -61,9 +59,9 @@ const checkAccountBalanceBeforePlaceOrder = function checkAccountBalanceBeforePl
             balanceNeed.set(currencies.trader, new BigNumber(0))
         }
 
-        if(order.type === OrderType.buyLimit || order.type=== OrderType.buyLimitMaker){
+        if(order.type === cons.OrderType.buyLimit || order.type=== cons.OrderType.buyLimitMaker){
             balanceNeed.set(currencies.base, balanceNeed.get(currencies.base).plus(new BigNumber(order.price).times(new BigNumber(order.amount))))
-        }else if(order.type=== OrderType.sellLimit || order.type=== OrderType.sellLimitMaker){
+        }else if(order.type=== cons.OrderType.sellLimit || order.type=== cons.OrderType.sellLimitMaker){
             balanceNeed.set(currencies.trader, balanceNeed.get(currencies.trader).plus(new BigNumber(order.amount)))
         }else {
             throw new Error(`unxepected order type:${order}`)
@@ -120,7 +118,7 @@ const placeOrdersByTask = function placeOrdersByTask (task, orders) {
     }
 
     //get current price
-    return marketMergedDetailByHttp(task.symbol).pipe(
+    return apiSpotMarket.marketMergedDetailByHttp(task.symbol).pipe(
         map(data => data.close),
         //generate orders to submit
         flatMap(curPrice => from(lackPrices).pipe(
@@ -130,17 +128,17 @@ const placeOrdersByTask = function placeOrdersByTask (task, orders) {
                 price: String(price),
                 amount: task['grid-amount'],
                 type: new BigNumber(curPrice).gt(new BigNumber(price)) 
-            ? OrderType.buyLimitMaker 
-             : OrderType.sellLimitMaker
+            ? cons.OrderType.buyLimitMaker 
+             : cons.OrderType.sellLimitMaker
             })))),
         toArray(),
         filter(orders => checkAccountBalanceBeforePlaceOrder(orders)),
         mergeMap(orders => from(orders)),
-        concatMap(order => orderPlaceReqByHttp(order)),
+        concatMap(order => apiOrder.orderPlaceReqByHttp(order)),
         filter(data => data.status === 'ok'),
         map(data => data.data),
         //save into db
-        flatMap(orderId => from(Orders.upsert({
+        flatMap(orderId => from(types.Orders.upsert({
             'order-id': orderId,
             'task-id': task.id
         }))),
@@ -162,7 +160,7 @@ const getNextPrice = function getNextPrice (order, gridPrices) {
     })
 
     let nextPrice = null
-    if(order['order-type']=== OrderType.buyLimitMaker){
+    if(order['order-type']=== cons.OrderType.buyLimitMaker){
         for(let price of numberGridPrices){
             if(price.gt(new BigNumber(order.price))){
                 nextPrice = price.toFixed() 
@@ -170,7 +168,7 @@ const getNextPrice = function getNextPrice (order, gridPrices) {
             }
         }
          
-    }else if (order['order-type'] === OrderType.sellLimitMaker) {
+    }else if (order['order-type'] === cons.OrderType.sellLimitMaker) {
         for(let [
                     i,
                     price
@@ -193,44 +191,44 @@ const getNextPrice = function getNextPrice (order, gridPrices) {
 const orderSubHandler = function  orderSubHandler (order) {
     let taskId = null
     //get orde from db check if is task order
-    from(Orders.findOne({
+    from(types.Orders.findOne({
         where: {'order-id': order['order-id']} 
     })).pipe(
         filter(data => data['task-id'] > 0),
-        mergeMap(data => from(Tasks.findOne({where: {'id': data['task-id']}}))),
+        mergeMap(data => from(types.Tasks.findOne({where: {'id': data['task-id']}}))),
         filter(data => data),
         concatMap(task => {
             taskId = task.id
             // get task by id check next order price 
             const price = getNextPrice(order, task['grid-prices'].split(','))
             //check if this pos has order
-            return from(Orders.findOne({
+            return from(types.Orders.findOne({
                 where: {'task-id': taskId,
                     price,
                     'order-state': {
                         [Op.or]: [
-                            OrderState.submitted,
-                            OrderState.partialFilled
+                            cons.OrderState.submitted,
+                            cons.OrderState.partialFilled
                         ]
                     }}
             })).pipe(
                 filter(data => !data),
                 // place order 
-                mergeMap(()=> orderPlaceReqByHttp({
-                    'account-id': getAccountIdByType('spot'),
+                mergeMap(()=>apiOrder.orderPlaceReqByHttp({
+                    'account-id': apiAccount.getAccountIdByType('spot'),
                     symbol: task.symbol,
                     price,
                     amount: task['grid-amount'],
-                    type: order['order-type'] === OrderType.buyLimitMaker 
-                    ? OrderType.sellLimitMaker 
-                    : OrderType.buyLimitMaker 
+                    type: order['order-type'] === cons.OrderType.buyLimitMaker 
+                    ? cons.OrderType.sellLimitMaker 
+                    : cons.OrderType.buyLimitMaker 
                 }))
             )
         }),
         filter(data => data.status === 'ok'),
         map(data => data.data),
         //save into db
-        flatMap(orderId => from(Orders.upsert({
+        flatMap(orderId => from(types.Orders.upsert({
             'order-id': orderId,
             'task-id': taskId
         }))),
@@ -249,10 +247,10 @@ const handleClosedTasks = function handleClosedTasks (){
         mergeMap(orders => from(orders)),
         map(order => order['order-id']),
         toArray(),
-        concatMap(orderIds => orderBatchCancelByHttp(orderIds)),
+        concatMap(orderIds =>apiOrder.orderBatchCancelByHttp(orderIds)),
         flatMap(data => from(data.success)),
-        concatMap(orderId => from(Orders.update({
-            'order-state': OrderState.canceled 
+        concatMap(orderId => from(types.Orders.update({
+            'order-state': cons.OrderState.canceled 
         }, {
             where: {
                 'order-id': orderId
@@ -279,9 +277,9 @@ const handleOpenTasks = function handleOpenTasks (accountPool){
         map(task => task.symbol),
         distinct(),
         toArray(),
-        mergeMap(symbol => orderSub(accountPool, symbol, true)),
+        mergeMap(symbol =>apiOrder.orderSub(accountPool, symbol, true)),
         tap(dingding.sendMsg),
-        filter(order => order['order-state'] === OrderState.filled)
+        filter(order => order['order-state'] === cons.OrderState.filled)
     ).subscribe(data =>{
         orderSubHandler(data)
     })

@@ -1,17 +1,10 @@
 import {
-    EMPTY_ERR_HANDLER,
-    MarketWebSocket
-} from '../base/const'
-import {
     Subject,
     from,
     interval,
     merge
 } from 'rxjs';
-import {
-    buildObservable,
-    create
-} from '../base/ws';
+import {cons, ws} from '../base';
 import {
     delay,
     filter,
@@ -19,12 +12,9 @@ import {
 }
 from 'rxjs/operators';
 
-import {
-    getLogger
-} from '../base/logger'
-import {
-    messagePoolAliveCheckInterval
-} from '../config.js'
+import config from '../config';
+import {create} from 'domain';
+import {getLogger} from 'log4js';
 
 const pool = {
     messageQueue: new Subject()
@@ -45,7 +35,7 @@ const heartbeat = function heartbeat (client, messageObservable, restartSubject)
     let lastReceived = ''
 
     const subscription = merge(
-        interval(messagePoolAliveCheckInterval).pipe(mapTo('timer')),
+        interval(config.messagePoolAliveCheckInterval).pipe(mapTo('timer')),
         messageObservable.pipe(filter(data => data.ping))
     ).pipe(
         // tap(data => getLogger().info(data))
@@ -85,15 +75,15 @@ const heartbeat = function heartbeat (client, messageObservable, restartSubject)
 }
 
 const main = function main (restartSubject) {
-    client = create(MarketWebSocket)
-    const messageObservable = buildObservable(client)
+    client = ws.create(cons.MarketWebSocket)
+    const messageObservable = ws.buildObservable(client)
 
     messageObservable.subscribe(
         data => {
             getLogger('debug').debug(data)
             pool.messageQueue.next(data)
         },
-        EMPTY_ERR_HANDLER
+        cons.EMPTY_ERR_HANDLER
     )
 
     heartbeat(client, messageObservable, restartSubject)

@@ -34,7 +34,7 @@ const getLogger = function getLogger (category){
     return logger()
 }
 
-module.exports = {
+export {
     init,
     getLogger
 }

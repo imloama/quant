@@ -1,12 +1,9 @@
 import {
-    Kline,
-    sequelize
-} from '../base/types'
-import {
     Subject,
     from,
     timer
 } from 'rxjs'
+import {order as apiOrder, spotMarket} from '../api';
 import {
     concatMap,
     distinct,
@@ -14,31 +11,24 @@ import {
     map,
     mergeMap,
     mergeMapTo,
-    tap,
     throttleTime,
     toArray
 } from 'rxjs/operators';
 
-import {getLogger} from 'log4js';
-import {
-    klineReq
-} from '../api/spot_market'
-import{
-    klineReqInterval
-} from '../config'
-import {openOrderReqByHttp} from '../api/order'
+import config from '../config'
+import {types} from '../base';
 
 const batchSaveOrUpdateOrders = function batchSaveOrUpdateOrders (klines) {
     return from(klines).pipe(
         concatMap(kline => from(
-            Kline.findCreateFind({
-                where: {
-                    'symbol': kline.symbol,
-                    'period': kline.period,
-                    'ts': kline.ts
-                },
-                defaults: kline
-            })
+           types.Kline.findCreateFind({
+               where: {
+                   'symbol': kline.symbol,
+                   'period': kline.period,
+                   'ts': kline.ts
+               },
+               defaults: kline
+           })
         )),
         toArray(),
     )
@@ -46,7 +36,7 @@ const batchSaveOrUpdateOrders = function batchSaveOrUpdateOrders (klines) {
 
 const autoFillHistoryInfo = function autoFillHistoryInfo (pool, symbol, period) {
     //查看数据库中的情况
-    return from(sequelize.query(`select ifnull(min(ts), 0) as min, 
+    return from(types.sequelize.query(`select ifnull(min(ts), 0) as min, 
                                         ifnull(max(ts), 0) as max from klines 
                                  where symbol = "${symbol}" and period = "${period}"`))
             .pipe(
@@ -75,7 +65,7 @@ const autoFillHistoryInfo = function autoFillHistoryInfo (pool, symbol, period) 
                     }
                 ]),
             mergeMap(data => from(data)),
-        concatMap(data => klineReq(pool, symbol, period, data.begin, data.end)),
+        concatMap(data =>spotMarket.klineReq(pool, symbol, period, data.begin, data.end)),
         concatMap(datas => batchSaveOrUpdateOrders(datas))
     )
 }
@@ -92,14 +82,14 @@ const autoFillHistoryInfoTimely = function autoFillHistoryInfoTimely (pool, arrS
     fillHistorySubscription = timely.pipe(
         mergeMapTo(from(arrSymbolPeriod)),
         concatMap(symbolPeriod => autoFillHistoryInfo(pool, symbolPeriod.symbol, symbolPeriod.period)),
-        throttleTime(klineReqInterval),
-    ).subscribe(() => timer(klineReqInterval).pipe().subscribe(()=>timely.next(1)))
+        throttleTime(config.klineReqInterval), 
+    ).subscribe(() => timer(config.klineReqInterval).pipe().subscribe(()=>timely.next(1)))
     
     timely.next(1)
 }
 
 const appendHistoryKlines = function appendHistoryKlines (pool) {
-    const symbolPeriodObs = openOrderReqByHttp().pipe(
+    const symbolPeriodObs =  apiOrder.openOrderReqByHttp().pipe(
         mergeMap(data => from(data)),
         map(data => data.symbol),
         distinct(),
