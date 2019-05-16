@@ -39,7 +39,7 @@ const buildObservable = function buildObservable (client) {
     )
 }
 
-module.exports = {
+export {
     create,
     buildObservable
 }

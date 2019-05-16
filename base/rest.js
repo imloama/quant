@@ -54,7 +54,7 @@ const post = function post (host, params, queryParams) {
 }
 
 
-module.exports = {
+export {
     get,
     post
 }

@@ -90,7 +90,7 @@ const accountSub = function accountSub (pool, model, cid) {
     )
 }
 
-module.exports = {
+export {
     accountSub,
     accountReq,
     sendAuth

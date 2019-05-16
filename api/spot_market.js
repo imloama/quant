@@ -11,7 +11,7 @@ import {
     toArray
 } from 'rxjs/operators'
 
-import rest from '../base/rest'
+import {rest} from '../base';
 
 const klineSub = function klineSub (pool, symbol, period = '1min') {
 
@@ -110,7 +110,7 @@ const marketMergedDetailByHttp = function   marketMergedDetailByHttp (symbol){
         )
 }
 
-module.exports = {
+export {
     klineSub,
     marketDepthSub,
     klineReq,

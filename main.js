@@ -2,9 +2,9 @@ import {
     from,
     zip
 } from 'rxjs';
+import {logger, types} from './base';
 import {
     mergeMap,
-    mergeMapTo,
     tap
 } from 'rxjs/operators';
 
@@ -21,11 +21,7 @@ import {getLogger} from 'log4js';
 import {
     start as gridStart
 } from './handler/grid'
-import {
-    init
-} from './base/types'
 import inquirer from 'inquirer'
-import logger from './base/logger'
 import {
     start as orderSaveStart
 } from './handler/spot_order_storage'
@@ -42,7 +38,7 @@ import {
 const main = function main () {
     logger.init()
     //初始化数据库信息
-    init()
+    types.init()
 
     //start message pool
     spotMarketPool.start()

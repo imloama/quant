@@ -1,19 +1,4 @@
 import {
-    AccountAPI,
-    BatchCancelOrder,
-    EMPTY_ERR_HANDLER,
-    GET,
-    NOTIFY,
-    OpenOrders,
-    OrderHistory,
-    Orders,
-    POST,
-    PlaceOrder,
-    REQ,
-    REQ_ORDER_DETAIL,
-    SUB
-} from '../base/const'
-import {
     concatMap,
     filter,
     flatMap,
@@ -23,18 +8,15 @@ import {
     toArray
 }
 from 'rxjs/operators';
+import {cons, rest} from '../base';
 
-import {
-    addSignature
-} from './aws'
+import {aws} from '.';
 import {
     awsParams
 } from '../config';
 import {
     from
 } from 'rxjs';
-import {getLogger} from 'log4js';
-import rest from '../base/rest'
 
 const openOrderReqByHttp = function openOrderReqByHttp () {
     let params = {
@@ -43,9 +25,9 @@ const openOrderReqByHttp = function openOrderReqByHttp () {
     }
 
     return from(
-        rest.get(AccountAPI + OpenOrders, addSignature({
-            url: AccountAPI + OpenOrders,
-            method: GET,
+        rest.get(cons.AccountAPI + cons.OpenOrders, aws.addSignature({
+            url: cons.AccountAPI +cons.OpenOrders,
+            method: cons.GET,
             params
         }, awsParams))
     ).pipe(
@@ -71,9 +53,9 @@ const openOrderReqByHttp = function openOrderReqByHttp () {
 
 const orderPlaceReqByHttp = function orderPlaceReqByHttp (params) {
     return from(
-        rest.post(AccountAPI + PlaceOrder, params, addSignature({
-            url: AccountAPI + PlaceOrder,
-            method: POST,
+        rest.post(cons.AccountAPI + cons.PlaceOrder, params, aws.addSignature({
+            url: cons.AccountAPI + cons.PlaceOrder,
+            method: cons.POST,
             params: {}
         }, awsParams))
     ).pipe(
@@ -93,11 +75,11 @@ const orderBatchCancelByHttp = function  orderBatchCancelByHttp (orderIds) {
     }
 
     return from(batchIds).pipe(
-        concatMap(ids => rest.post(AccountAPI + BatchCancelOrder, {
+        concatMap(ids => rest.post(cons.AccountAPI + cons.BatchCancelOrder, {
             'order-ids': ids
-        }, addSignature({
-            url: AccountAPI + BatchCancelOrder,
-            method: POST,
+        }, aws.addSignature({
+            url: cons.AccountAPI + cons.BatchCancelOrder,
+            method: cons.POST,
             params: {}
         }, awsParams))),
         filter(data => data.status === 'ok'),
@@ -108,9 +90,9 @@ const orderBatchCancelByHttp = function  orderBatchCancelByHttp (orderIds) {
 
 const orderHistoryReqByHttp = function orderHistoryReqByHttp (params) {
     return from(
-        rest.get(AccountAPI + OrderHistory, addSignature({
-            url: AccountAPI + OrderHistory,
-            method: GET,
+        rest.get(cons.AccountAPI + cons.OrderHistory, aws.addSignature({
+            url: cons.AccountAPI + cons.OrderHistory,
+            method: cons.GET,
             params
         }, awsParams))
     ).pipe(
@@ -134,10 +116,10 @@ const orderHistoryReqByHttp = function orderHistoryReqByHttp (params) {
 }
 
 const orderDetailReqByHttp = function orderDetailReqByHttp (orderId) {
-    const url = AccountAPI + Orders + `/${orderId}`
-    return from(rest.get(url, addSignature({
+    const url = cons.AccountAPI + cons.Orders + `/${orderId}`
+    return from(rest.get(url, aws.addSignature({
         url,
-        method: GET,
+        method: cons.GET,
         params: {}
     }, awsParams))).pipe(
         filter(data => data.status === 'ok'),
@@ -162,13 +144,13 @@ const orderDetailReqByHttp = function orderDetailReqByHttp (orderId) {
 
 const orderDetailReq = function orderDetailReq (pool, orderId) {
     pool.send({
-        op: REQ,
-        topic: REQ_ORDER_DETAIL,
+        op: cons.REQ,
+        topic: cons.REQ_ORDER_DETAIL,
         'order-id': String(orderId)
     })
 
     return pool.messageQueue.pipe(
-        filter(data => data.op === REQ && data.topic === REQ_ORDER_DETAIL),
+        filter(data => data.op === cons.REQ && data.topic === cons.REQ_ORDER_DETAIL),
         map(data => {
             const result = data.data
 
@@ -195,14 +177,14 @@ const orderSub = function orderSub (pool, symbols, filterWithSymbol = false) {
         tap(symbol => symbolMap.set(symbol, true))
     ).subscribe(
         symbol => pool.send({
-            op: SUB,
+            op: cons.SUB,
             topic: `orders.${symbol}`
         }),
-        EMPTY_ERR_HANDLER
+        cons.EMPTY_ERR_HANDLER
     )
 
     return pool.messageQueue.pipe(
-        filter(msg => msg.op === NOTIFY && 
+        filter(msg => msg.op === cons.NOTIFY && 
             msg.topic.includes('orders') && 
             (!filterWithSymbol || symbolMap.get(msg.topic.split('.')[1]))),
         map(data => data.data),
@@ -210,7 +192,7 @@ const orderSub = function orderSub (pool, symbols, filterWithSymbol = false) {
 }
 
 
-module.exports = {
+export {
     orderSub,
     orderDetailReq,
     openOrderReqByHttp,

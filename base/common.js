@@ -18,6 +18,6 @@ const getSymbolInfo = function getSymbolInfo (symbol){
     return null
 }
 
-module.exports = {
+export {
     getSymbolInfo
 }

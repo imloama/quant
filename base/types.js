@@ -196,7 +196,7 @@ const init = function init() {
 
 }
 
-module.exports = {
+export {
     sequelize,
     Orders,
     Kline,

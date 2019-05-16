@@ -37,6 +37,6 @@ const addSignature = function addSignature (queryParams, awsParams) {
 }
 
 
-module.exports = {
+export {
     addSignature
 }
