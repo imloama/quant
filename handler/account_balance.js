@@ -14,19 +14,27 @@ import {
 } from 'rxjs/operators';
 
 import BigNumber from 'bignumber.js'
-import {account as acc} from '../api';
-import {cons} from '../base';
-import {getLogger} from 'log4js';
 
-const account = {}
+import {
+    cons
+} from '../base';
+import {
+    getLogger
+} from 'log4js';
+import AccountAPI from '../api/account';
 
-const start = function start (pool) {
-    getLogger().info('account balance monitor starting...')
-    const accountStartSub = new Subject()
+export default class AccountBalance {
+    constructor (){
+        this.account = {}
+    }
+
+    start (pool) {
+        getLogger().info('account balance monitor starting...')
+        const accountStartSub = new Subject()
 
 
-    const accountReqSub = acc.accountReq(pool)
-    accountReqSub.pipe(
+        const accountReqSub = AccountAPI.accountReq(pool)
+        accountReqSub.pipe(
         take(1),
         //打散成多个账户
         flatMap(datas => from(datas)),
@@ -62,48 +70,44 @@ const start = function start (pool) {
         )),
     ).subscribe(
         data => {
-            account[data.id] = data
+            this.account[data.id] = data
         },
         err => console.error(err)
     )
 
-    accountReqSub.subscribe(
-        ()=> accountStartSub.next(1)
+        accountReqSub.subscribe(
+        () => accountStartSub.next(1)
     )
-    
-    accountReqSub.pipe(
+
+        accountReqSub.pipe(
         //不能在一个ws里同时订阅可用和全部余额，脑残设计！！！
-        mergeMapTo(acc.accountSub(pool))
+        mergeMapTo(AccountAPI.accountSub(pool))
     ).subscribe(
         data => {
             getLogger('debug').debug(JSON.stringify(data))
-            if(!account[data['account-id']][data.currency]){
-                account[data['account-id']][data.currency] = {}
+            if (!this.account[data['account-id']][data.currency]) {
+                this.account[data['account-id']][data.currency] = {}
             }
-            account[data['account-id']][data.currency].available = new BigNumber(data.balance)
-            
-            if(Math.random() < 0.05){
-                getLogger().info(account)
+            this.account[data['account-id']][data.currency].available = new BigNumber(data.balance)
+
+            if (Math.random() < 0.05) {
+                getLogger().info(this.account)
             }
         },
         cons.EMPTY_ERR_HANDLER
     )
 
-    return accountStartSub
-}
-
-const getAccountIdByType = function getAccountIdByType (accountType){
-    for(let key in account){
-        if(account[key]['account-type'] === accountType){
-            return key
-        } 
+        return accountStartSub
     }
 
-    return 0
-}
+    getAccountIdByType (accountType) {
+        for (let key in this.account) {
+            if (this.account[key]['account-type'] === accountType) {
+                return key
+            }
+        }
 
-module.exports = {
-    account,
-    start,
-    getAccountIdByType
+        return 0
+    }
+
 }

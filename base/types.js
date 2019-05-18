@@ -21,6 +21,36 @@ const sequelize = new Sequelize(db.database, db.username, db.password, {
     storage: db.storage
 });
 
+// const Fields = {
+//     Orders: {
+//         ID: 'id',
+
+//         SeqID: 'seq-id',
+//         Symbol: 'symbol',
+//         AccountID: 'account-id',
+
+//         OrderID: 'order-id',
+//         OrderAmount: 'order-amount',
+//         OrderPrice: 'order-price',
+//         OrderType: 'order-type',
+//         OrderSource: 'order-source',
+//         OrderState: 'order-state',
+
+//         CreatedAt: 'created-at',
+//         FinishedAt: 'finished-at',
+
+//         Role: 'role',
+//         Price: 'price',
+
+//         FilledAmount: 'filled-amount',
+//         UnfilledAmount: 'unfilled-amount',
+//         FilledCashAmount: 'filled-cash-amount',
+//         FilledFees: 'filled-fees',
+
+//         TaskID: 'task-id'
+//     }
+// }
+
 const Orders = sequelize.define('order', {
     id: {
         type: Sequelize.INTEGER(11),
@@ -96,8 +126,8 @@ const Orders = sequelize.define('order', {
     indexes: [{
         unique: true,
         fields: ['order-id']
-    },{
-        fields:['task-id']
+    }, {
+        fields: ['task-id']
     }]
 })
 
@@ -140,44 +170,43 @@ const Kline = sequelize.define('kline', {
 }, {
     indexes: [{
 
-        fields: ['symbol', 'period']
-    },
-    {
-        unique: true,
-        fields: ['symbol', 'period', 'ts']
-    }]
+            fields: ['symbol', 'period']
+        },
+        {
+            unique: true,
+            fields: ['symbol', 'period', 'ts']
+        }
+    ]
 })
 
-const Tasks = sequelize.define('task',
-    {
-        'symbol': {
-            type: Sequelize.STRING
-        },
-        'start-price': {
-            type: Sequelize.STRING
-        },
-        'end-price': {
-            type: Sequelize.STRING
-        },
-        'grid-rate': {
-            type: Sequelize.STRING
+const Tasks = sequelize.define('task', {
+    'symbol': {
+        type: Sequelize.STRING
+    },
+    'start-price': {
+        type: Sequelize.STRING
+    },
+    'end-price': {
+        type: Sequelize.STRING
+    },
+    'grid-rate': {
+        type: Sequelize.STRING
 
-        },
-        'grid-count': {
-            type: Sequelize.STRING
+    },
+    'grid-count': {
+        type: Sequelize.STRING
 
-        },
-        'grid-amount': {
-            type: Sequelize.STRING
-        },
-        'grid-prices': {
-            type: Sequelize.STRING
-        }, 
-        'state': {
-            type: Sequelize.TINYINT //0 invalid 1 normal
-        }
+    },
+    'grid-amount': {
+        type: Sequelize.STRING
+    },
+    'grid-prices': {
+        type: Sequelize.STRING
+    },
+    'state': {
+        type: Sequelize.TINYINT //0 invalid 1 normal
     }
-)
+})
 
 const init = function init() {
     Orders.sync({

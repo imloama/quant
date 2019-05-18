@@ -268,7 +268,7 @@ module.exports = {
             "error",
             "last"
         ],
-        "sort-imports": "error",
+        // "sort-imports": "error",
         "sort-keys": "off",
         "sort-vars": "error",
         "space-before-blocks": "off",

@@ -27,71 +27,70 @@ import {
     awsParams
 } from '../config';
 
-const authPassedSubject = new Subject()
+export default class AccountAPI {
 
-const sendAuth = function sendAuth (pool) {
-    pool.messageQueue.pipe(
-        filter(data => data.messageType === 'open'),
-    ).subscribe(() => {
-        const reqParams = {
-            url: AccountWebSocket,
-            method: 'get',
-            params: {}
+    constructor () {
+        this.authPassedSubject = new Subject()
+    }
+
+    sendAuth (pool) {
+        pool.messageQueue.pipe(
+            filter(data => data.messageType === 'open'),
+        ).subscribe(() => {
+            const reqParams = {
+                url: AccountWebSocket,
+                method: 'get',
+                params: {}
+            }
+            const data = addSignature(reqParams, awsParams)
+
+            data.op = 'auth'
+
+            pool.send(data)
+        })
+
+        pool.messageQueue.pipe(
+            filter(data => data.op === OP_AUTH && !data[ERR_CODE]),
+        ).subscribe(
+            data => this.authPassedSubject.next(data))
+
+        return this.authPassedSubject
+    }
+
+    static accountReq (pool) {
+        pool.send({
+            op: REQ,
+            topic: REQ_ACCOUNTS_LIST
+        })
+
+        return pool.messageQueue.pipe(
+            filter(data => data.topic === REQ_ACCOUNTS_LIST && data.op === REQ),
+            map(data => data.data),
+            share()
+        )
+    }
+
+    static accountSub (pool, model, cid) {
+        if (!model) {
+            //eslint-disable-next-line
+            model = '0'
         }
-        const data = addSignature(reqParams, awsParams)
 
-        data.op = 'auth'
+        if (!cid) {
+            //eslint-disable-next-line
+            cid = String(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER))
+        }
+        pool.send({
+            op: SUB,
+            model,
+            cid,
+            topic: OP_ACCOUNTS
+        })
 
-        pool.send(data)
-    })
-
-    pool.messageQueue.pipe(
-        filter(data => data.op === OP_AUTH && !data[ERR_CODE]),
-    ).subscribe(
-        data => authPassedSubject.next(data))
-
-    return authPassedSubject
-}
-
-const accountReq = function accountReq (pool) {
-    pool.send({
-        op: REQ,
-        topic: REQ_ACCOUNTS_LIST
-    })
-
-    return pool.messageQueue.pipe(
-        filter(data => data.topic === REQ_ACCOUNTS_LIST && data.op === REQ),
-        map(data => data.data),
-        share()
-    )
-}
-
-const accountSub = function accountSub (pool, model, cid) {
-    if (!model) {
-        //eslint-disable-next-line
-        model = '0'
+        return pool.messageQueue.pipe(
+            filter(msg => msg.topic === OP_ACCOUNTS && msg.op === NOTIFY),
+            flatMap(msg => from(msg.data.list)),
+            share()
+        )
     }
-
-    if (!cid) {
-        //eslint-disable-next-line
-        cid = String(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER))
-    }
-    pool.send({
-        op: SUB,
-        model,
-        cid,
-        topic: OP_ACCOUNTS
-    })
-
-    return pool.messageQueue.pipe(
-        filter(msg => msg.topic === OP_ACCOUNTS && msg.op === NOTIFY),
-        flatMap(msg => from(msg.data.list)),
-        share()
-    )
-}
-
-export {
-    accountSub,
-    accountReq,
-    sendAuth
 }
