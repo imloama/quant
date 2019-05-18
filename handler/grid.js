@@ -97,7 +97,7 @@ export default class Grid {
 
         const accountId = this.accountBalance.getAccountIdByType('spot')
         for (let key of balanceNeed.keys()) {
-            const accountBalance = this.accountBalanceaccount[accountId][key]
+            const accountBalance = this.accountBalanceaccount.account[accountId][key]
             if (!accountBalance) {
                 getLogger().warn(`orders need ${key} ${balanceNeed.get(key).toFixed()}, but we have none in our spot account`)
                 return false
