@@ -5,9 +5,6 @@ import {
 } from 'rxjs';
 
 import {
-    account as apiAccount
-} from '../api';
-import {
     concatMap,
     delay,
     distinct,
@@ -215,7 +212,7 @@ export default class Grid {
         return nextPrice
     }
 
-    static orderSubHandler (order) {
+    orderSubHandler (order) {
         let taskId = null
         //get orde from db check if is task order
         from(types.Orders.findOne({
@@ -314,7 +311,7 @@ export default class Grid {
             tap(dingding.sendMsg),
             filter(order => order['order-state'] === cons.OrderState.filled)
         ).subscribe(data => {
-            Grid.orderSubHandler(data)
+            this.orderSubHandler(data)
         })
 
         taskObservable.pipe(
