@@ -74,7 +74,7 @@ export default class Grid {
     }
 
 
-    static checkAccountBalanceBeforePlaceOrder (placeOrderParams) {
+    checkAccountBalanceBeforePlaceOrder (placeOrderParams) {
         const balanceNeed = new Map()
 
         placeOrderParams.forEach(order => {
@@ -112,7 +112,7 @@ export default class Grid {
         return true
     }
 
-    static placeOrdersByTask (task, orders) {
+    placeOrdersByTask (task, orders) {
         const gridPrices = task['grid-prices'].split(',')
         const orderPrices = new Map()
 
@@ -159,7 +159,7 @@ export default class Grid {
                         : cons.OrderType.sellLimitMaker
                 })))),
             toArray(),
-            filter(orders => Grid.checkAccountBalanceBeforePlaceOrder(orders)),
+            filter(orders => this.checkAccountBalanceBeforePlaceOrder(orders)),
             mergeMap(orders => from(orders)),
             concatMap(order => OrderAPI.orderPlaceReqByHttp(order)),
             filter(data => data.status === 'ok'),
@@ -324,7 +324,7 @@ export default class Grid {
             concatMap(([
                 task,
                 orders
-            ]) => Grid.placeOrdersByTask(task, orders))
+            ]) => this.placeOrdersByTask(task, orders))
         ).subscribe(
             data => getLogger().info(data),
             err => getLogger().error(err)
