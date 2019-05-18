@@ -2,38 +2,32 @@ import {
     from,
     zip
 } from 'rxjs';
-import {logger, types} from './base';
+import {
+    logger,
+    types
+} from './base';
 import {
     mergeMap,
     tap
 } from 'rxjs/operators';
 
-import {
-    appendHistoryKlines
-} from './handler/spot_kline_storage'
+import SpotAccount from './connection/spot_pool';
+import SpotMarket from './connection/spot_market_pool';
+
 import {
     awsParams
 } from './config';
+import AccountBalance from './handler/account_balance'
 import {
-    start as balanceStart
-} from './handler/account_balance'
-import {getLogger} from 'log4js';
-import {
-    start as gridStart
-} from './handler/grid'
+    getLogger
+} from 'log4js';
+
 import inquirer from 'inquirer'
-import {
-    start as orderSaveStart
-} from './handler/spot_order_storage'
-import {
-    pool
-} from './connection/spot_pool'
-import {
-    sendAuth
-} from './api/account'
-import {
-    pool as spotMarketPool
-} from './connection/spot_market_pool'
+import OrderStorage  from './handler/spot_order_storage'
+import AccountAPI from './api/account';
+import SpotKlineStorage from './handler/spot_kline_storage';
+import Grid from './handler/grid';
+
 
 const main = function main () {
     logger.init()
@@ -41,25 +35,33 @@ const main = function main () {
     types.init()
 
     //start message pool
+    const spotMarketPool = new SpotMarket()
     spotMarketPool.start()
-    pool.start()
 
-      //send auth message
-    const authPassedSubject = sendAuth(pool)
-    
+    const spotAccountPool = new SpotAccount()
+    spotAccountPool.start()
+
+    //send auth message
+    const accountAPI = new AccountAPI()
+    const authPassedSubject = accountAPI.sendAuth(spotAccountPool)
+
+    const account = new AccountBalance()
+    const orderStorage = new OrderStorage()
+
     authPassedSubject.pipe(
         mergeMap(() => zip(
             //req account info and sub account change
-            balanceStart(pool),
+            account.start(spotAccountPool),
             //save order info to storage
-            orderSaveStart(pool))),
+            orderStorage.start(spotAccountPool),
+        ))
     ).subscribe(
         //start grid stragy
-        ()=> gridStart(pool),
+        () => new Grid(account).start(spotAccountPool),
         err => getLogger().error(err)
     )
-     
-    appendHistoryKlines(spotMarketPool)
+
+    new SpotKlineStorage().appendHistoryKlines(spotMarketPool)
 }
 
 if (awsParams.key) {
