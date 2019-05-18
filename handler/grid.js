@@ -250,7 +250,7 @@ export default class Grid {
                     filter(data => !data),
                     // place order 
                     mergeMap(() => OrderAPI.orderPlaceReqByHttp({
-                        'account-id': apiAccount.getAccountIdByType('spot'),
+                        'account-id': this.accountBalance.getAccountIdByType('spot'),
                         symbol: task.symbol,
                         price,
                         amount: task['grid-amount'],
