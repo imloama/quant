@@ -201,7 +201,7 @@ const Tasks = sequelize.define('task', {
         type: Sequelize.STRING
     },
     'grid-prices': {
-        type: Sequelize.STRING
+        type: Sequelize.STRING(1024)
     },
     'state': {
         type: Sequelize.TINYINT //0 invalid 1 normal
