@@ -50,6 +50,7 @@ const main = function main () {
 
     const account = new AccountBalance()
     const orderStorage = new OrderStorage()
+    const grid = new Grid(account)
 
     authPassedSubject.pipe(
         mergeMap(() => zip(
@@ -60,7 +61,7 @@ const main = function main () {
         ))
     ).subscribe(
         //start grid stragy
-        () => new Grid(account).start(spotAccountPool),
+        () => grid.start(spotAccountPool),
         err => getLogger().error(err)
     )
 
