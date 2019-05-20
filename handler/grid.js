@@ -136,6 +136,7 @@ export default class Grid {
         if (lackPrices.length <= 1) {
             //wired should be at least one for the gap.
             getLogger().warn(`task ${task} has no lack price for it.`)
+            lackPrices.splice(0, lackPrices.length)
         } else {
             getLogger().warn(`task ${task} lack price: ${lackPrices}`)
         }

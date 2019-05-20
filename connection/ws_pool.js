@@ -11,7 +11,6 @@ import {
 import {
     delay,
     mapTo,
-    throttle,
     throttleTime
 } from 'rxjs/operators';
 
