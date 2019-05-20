@@ -30,12 +30,30 @@ const sendMsg = function sendMsg (message){
         text: {
             content: JSON.stringify(msgObj, null, 2)
         }
-    }).subscribe(null, getLogger('debug').debug)
+    }).subscribe(null, getLogger().debug)
+}
+
+const sendAlert = function sendAlert (message){
+    let msgObj = null
+    if(typeof message === 'string'|| message instanceof String){
+        msgObj = JSON.parse(message)
+    }else {
+        msgObj = message
+    }
+
+    post(notifier.dingding.webhook, {
+        msgtype: 'text',
+        text: {
+            content: JSON.stringify(msgObj, null, 2)
+        },
+        at: {atMobiles: notifier.dingding.mobiles}
+    }).subscribe(null, getLogger().debug)
 }
 
 
 export {
-    sendMsg
+    sendMsg,
+    sendAlert
 }
 
 /*

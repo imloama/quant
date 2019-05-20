@@ -1,6 +1,17 @@
-import {configure, getLogger as logger} from 'log4js';
+import {configure, getLogger} from 'log4js';
 
 import config from '../config'
+import {dingding} from '../notifier';
+
+const registerErr = function registerErr (){
+    const orgLogger = getLogger().error
+
+
+    getLogger().error = function error (message, ...args){
+        orgLogger(message, args)
+        dingding.sendMsg(message) 
+    }
+}
 
 const init = function init (){
     configure({
@@ -22,19 +33,10 @@ const init = function init (){
                 level: 'info'}}
     });
 
-    logger().info('Logger config finished');
-}
-
-//category defines at init  
-const getLogger = function getLogger (category){
-    if(category) {
-        return logger(category)
-    }
-
-    return logger()
+    getLogger().info('Logger config finished');
+    registerErr()
 }
 
 export {
-    init,
-    getLogger
+    init
 }

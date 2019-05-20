@@ -1,10 +1,7 @@
 const crypto = require('crypto')
 
 import * as url from 'url'
-
-import {
-    getLogger
-} from '../base/logger'
+import {getLogger} from 'log4js';
 
 const getUTCTime = function getUTCTime () {
     return new Date().toISOString().slice(0, -5)
