@@ -24,10 +24,8 @@ import {
     OrderState
 } from '../base/const';
 
-import {
-    getLogger
-} from '../base/logger'
 import OrderAPI from '../api/order';
+import {getLogger} from 'log4js';
 
 export default class OrderStorage {
     constructor () {
