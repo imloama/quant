@@ -70,7 +70,6 @@ export default class Grid {
         )
     }
 
-
     checkAccountBalanceBeforePlaceOrder (placeOrderParams) {
         const balanceNeed = new Map()
 
@@ -134,7 +133,7 @@ export default class Grid {
             throw new Error(`open orders price: ${orderPrices.keys} not expected`)
         }
 
-        if (lackPrices.length === 0) {
+        if (lackPrices.length <= 1) {
             //wired should be at least one for the gap.
             getLogger().warn(`task ${task} has no lack price for it.`)
         } else {

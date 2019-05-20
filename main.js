@@ -1,6 +1,7 @@
 import {
     from,
-    zip
+    zip,
+    of
 } from 'rxjs';
 import {
     logger,
@@ -8,7 +9,8 @@ import {
 } from './base';
 import {
     mergeMap,
-    tap
+    tap,
+    delay
 } from 'rxjs/operators';
 
 import SpotAccount from './connection/spot_pool';
@@ -27,6 +29,7 @@ import OrderStorage  from './handler/spot_order_storage'
 import AccountAPI from './api/account';
 import SpotKlineStorage from './handler/spot_kline_storage';
 import Grid from './handler/grid';
+import process from 'process'
 
 
 const main = function main () {
@@ -85,3 +88,8 @@ if (awsParams.key) {
             awsParams.key = data.apiKey
         })).subscribe(() => main())
 }
+
+process.on('uncaughtException', err => {
+    getLogger().error(err)
+    of(1).pipe(delay(3000)).subscribe(()=>process.exit(0))
+})

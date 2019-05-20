@@ -21,6 +21,13 @@ module.exports = {
         }
     },
 
+    notifier: {
+        dingding: {
+            webhook: 'https://oapi.dingtalk.com/robot/send?access_token=bd4eade',
+            mobiles: ['']
+        }
+    },
+
     messagePoolAliveCheckInterval: 1000 * 40,
 
     klineReqInterval: 1000 * 30

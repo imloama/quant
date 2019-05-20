@@ -7,19 +7,18 @@ import {from} from 'rxjs';
 import inquirer from 'inquirer'
 import MarketAPI from '../api/spot_market';
 
-
-const priceAndAmountPrompt = function priceAndAmountPrompt (symbolInfo){
+const priceAndAmountPrompt = function priceAndAmountPrompt (symbolInfo, marketInfo){
      //input params
     const promiseArr = [
         {
             type: 'input',
             name: 'start-price',
-            message: `Please input start price (Precision:${symbolInfo['price-precision']} ):\n`
+            message: `Please input start price (Cur price:${marketInfo.close}, Precision:${symbolInfo['price-precision']} ):\n`
         },
         {
             type: 'input',
             name: 'end-price',
-            message: `Please input end price (Precision:${symbolInfo['price-precision']}):\n`
+            message: `Please input end price (Cur price:${marketInfo.close}, Precision:${symbolInfo['price-precision']}):\n`
         },
         {
             type: 'input',
@@ -51,7 +50,9 @@ const main = async function main (){
             ),
     ).toPromise()
 
-    const inputInfos = await priceAndAmountPrompt(symbolInfo)
+    const curMarketInfo = await MarketAPI.marketMergedDetailByHttp(symbolInfo.symbol).toPromise()
+
+    const inputInfos = await priceAndAmountPrompt(symbolInfo, curMarketInfo)
 
     inputInfos.symbol = symbolInfo.symbol
     inputInfos['grid-rate'] = getRate(inputInfos['start-price'], inputInfos['end-price'], inputInfos['grid-count']).toFixed(4)
@@ -69,8 +70,8 @@ const main = async function main (){
         default: false 
     })
 
-    if(!confirm){
-        return
+    if(!confirm.confirm){
+        return 'Task is canceled'
     }
 
      //save task into db
@@ -78,6 +79,8 @@ const main = async function main (){
 
     const data = await Tasks.build(inputInfos)
     await data.save()
+
+    return 'Task has built successfully'
 }
 
-main().then(()=> console.log('Task has built successfully')).catch(err => console.error(err))
+main().then(console.log).catch(err => console.error(err))
