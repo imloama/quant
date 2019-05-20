@@ -279,6 +279,17 @@ export default class Grid {
             mergeMap(orders => from(orders)),
             map(order => order['order-id']),
             toArray(),
+            map(arrIds => {
+                const result = []
+                while(arrIds.length > 50){
+                    result.push(arrIds.slice(0, 50))
+                    arrIds.splice(0, 50)
+                }
+
+                result.push(arrIds)
+                return result
+            }),
+            mergeMap(arrArrIds => from(arrArrIds)),
             concatMap(orderIds => OrderAPI.orderBatchCancelByHttp(orderIds)),
             flatMap(data => from(data.success)),
             concatMap(orderId => from(types.Orders.update({
