@@ -1,28 +1,25 @@
 import {Tasks, init} from '../base/types'
-import {filter, flatMap, map, mergeMap, tap} from 'rxjs/operators';
+import {filter, mergeMap, take} from 'rxjs/operators';
 import {getGridPrices, getRate} from './calc'
 
 import BigNumber from 'bignumber.js';
 import {from} from 'rxjs';
 import inquirer from 'inquirer'
+import MarketAPI from '../api/spot_market';
 
-const main = function main (){
+
+const priceAndAmountPrompt = function priceAndAmountPrompt (symbolInfo){
      //input params
     const promiseArr = [
         {
             type: 'input',
-            name: 'symbol',
-            message: 'Please input trade symbol:\n'
-        },
-        {
-            type: 'input',
             name: 'start-price',
-            message: 'Please input start price:\n'
+            message: `Please input start price (Precision:${symbolInfo['price-precision']} ):\n`
         },
         {
             type: 'input',
             name: 'end-price',
-            message: 'Please input end price:\n'
+            message: `Please input end price (Precision:${symbolInfo['price-precision']}):\n`
         },
         {
             type: 'input',
@@ -32,57 +29,55 @@ const main = function main (){
         {
             type: 'input',
             name: 'grid-amount',
-            message: 'Please input amount for every grid:\n'
+            message: `Please input amount for every grid(Precision:${symbolInfo['amount-precision']}):\n`
         }
-
     ]
 
-    const inputParamsCalcObservable = from(inquirer.prompt(promiseArr)).pipe(
-          map(params => {
-              const rate = getRate(params['start-price'], params['end-price'], params['grid-count'])
-              params['grid-rate'] =rate.toFixed(4)
+    return inquirer.prompt(promiseArr)
+} 
 
-              return params 
-          }),
-          flatMap(data => from(inquirer.prompt([
-              {
-                  type: 'confirm',
-                  name: 'confirm',
-                  message: `Calculate rate result is:${data['grid-rate']}, including trade fee. 
-     Every grid finished you can earn ${new BigNumber(data['grid-amount']).times(new BigNumber(data['grid-rate']))}. 
+const main = async function main (){
+
+    const symbolInfo = await from(inquirer.prompt({
+        type: 'input',
+        name: 'symbol',
+        message: 'Please input trade symbol:\n'
+    })).pipe(
+        mergeMap(data => MarketAPI.getAllSymbolInfosByHttp().pipe(
+                    mergeMap(symbols => from(symbols)), 
+                    filter(symbol => symbol.symbol === data.symbol),
+                    take(1)
+                )
+            ),
+    ).toPromise()
+
+    const inputInfos = await priceAndAmountPrompt(symbolInfo)
+
+    inputInfos.symbol = symbolInfo.symbol
+    inputInfos['grid-rate'] = getRate(inputInfos['start-price'], inputInfos['end-price'], inputInfos['grid-count']).toFixed(4)
+
+    const gridPrices =  getGridPrices(inputInfos['start-price'], inputInfos['end-price'], inputInfos['grid-rate'],
+                                      inputInfos['grid-count'], symbolInfo['price-precision'])
+    inputInfos['grid-prices'] = gridPrices.join(',')
+    inputInfos.state = 1
+    const confirm = await inquirer.prompt({
+        type: 'confirm',
+        name: 'confirm',
+        message: `Calculate rate result is:${inputInfos['grid-rate']}, with trading fee included. 
+     Every grid finished you can earn ${new BigNumber(inputInfos['grid-amount']).times(new BigNumber(inputInfos['grid-rate']))}. 
      Would you like to continue?`,
-                  default: false 
-              }
-          ])).pipe(tap(newData => {newData.org = data}))),
-          filter(data => data.confirm),
-          map(data => {
-              const result = data.org
-              const gridPrices =  getGridPrices(data.org['start-price'], data.org['end-price'], data.org['grid-rate'], data.org['grid-count'], 5)
-              result['grid-prices'] = gridPrices.join(',')
-              result.state = 1
-              return result
-          })
-         )
+        default: false 
+    })
+
+    if(!confirm){
+        return
+    }
 
      //save task into db
-
     init()
 
-    inputParamsCalcObservable.pipe(
-         map(data => Tasks.build(data)),
-         mergeMap(data => from(data.save()))
-    ).subscribe(data =>{
-        console.log(data.dataValues)
-        console.log('Task has built successfully.')
-    }, err => console.error(err))
-
-
-     /*
-      *get current price. 
-      *calc order info
-      *calc balance need
-      *if ok. submit order
-      */
+    const data = await Tasks.build(inputInfos)
+    await data.save()
 }
 
-main()
+main().then(()=> console.log('Task has built successfully')).catch(err => console.error(err))

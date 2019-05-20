@@ -10,7 +10,8 @@ import {
 } from '../base';
 import {
     delay,
-    mapTo
+    mapTo,
+    throttle
 } from 'rxjs/operators';
 
 import {
@@ -30,7 +31,9 @@ export default class WebsocketPool {
 
         this.responseHeartbeatFunc = responseHeartbeatFunc
 
-        this.restartSubject.subscribe(() => {
+        this.restartSubject.pipe(
+            throttle(aliveCheckInterval/2)
+        ).subscribe(() => {
             getLogger().info(`websocket ${this.url} may be disconnected. try reconnect.`)
             this.start()
         })
