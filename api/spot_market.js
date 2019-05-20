@@ -1,6 +1,7 @@
 import {
     MarketAPI as marketHost,
-    MarketDetailMerged
+    MarketDetailMerged,
+    MarketSymbols
 } from '../base/const'
 import {
     Subject,
@@ -118,5 +119,11 @@ export default class MarketAPI {
         )
     }
 
+    static getAllSymbolInfosByHttp (){
+        return from(rest.get(marketHost + MarketSymbols, {})).pipe(
+            filter(data => data.status === 'ok'),
+            map(data => data.data)
+        )
+    }
 
 }

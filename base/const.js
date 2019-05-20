@@ -28,6 +28,7 @@ export const    Orders= '/v1/order/orders'
 
 export const    MarketAPI= 'https://api.huobi.pro'
 export const    MarketDetailMerged= '/market/detail/merged'
+export const    MarketSymbols = '/v1/common/symbols'
 
 export const    GET= 'get'
 export const    POST= 'post'
