@@ -139,7 +139,7 @@ module.exports = {
         "no-buffer-constructor": "error",
         "no-caller": "error",
         "no-catch-shadow": "error",
-        "no-confusing-arrow": "error",
+        // "no-confusing-arrow": "error",
         "no-continue": "off",
         "no-div-regex": "error",
         "no-duplicate-imports": "error",

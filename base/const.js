@@ -26,6 +26,10 @@ export const    BatchCancelOrder= '/v1/order/orders/batchcancel'
 export const    OrderHistory= '/v1/order/history'
 export const    Orders= '/v1/order/orders'
 
+export const Accounts = '/v1/account/accounts'
+// export const AccountBalance = '/v1/account/accounts/{account-id}/balance'
+
+
 export const    MarketAPI= 'https://api.huobi.pro'
 export const    MarketDetailMerged= '/market/detail/merged'
 export const    MarketSymbols = '/v1/common/symbols'
