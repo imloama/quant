@@ -8,6 +8,10 @@ const getUTCTime = function getUTCTime () {
 }
 
 const addSignature = function addSignature (queryParams, awsParams) {
+    if(!queryParams.params){
+        queryParams.params = {}
+    }
+    
     const timeStamp = getUTCTime()
     queryParams.params.Timestamp = encodeURIComponent(timeStamp)
     queryParams.params.SignatureMethod = 'HmacSHA256'

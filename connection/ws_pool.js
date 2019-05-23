@@ -11,7 +11,8 @@ import {
 import {
     delay,
     mapTo,
-    throttleTime
+    throttleTime,
+    filter
 } from 'rxjs/operators';
 
 import {
@@ -49,6 +50,14 @@ export default class WebsocketPool {
                 this.messageQueue.next(data)
             },
             cons.EMPTY_ERR_HANDLER
+        )
+
+        //restart when closed
+        messageObservable.pipe(
+            filter(data => data.messageType=== 'close')
+        ).subscribe(
+            this.restartSubject.next(1),
+           cons.EMPTY_ERR_HANDLER 
         )
 
         this.heartbeat(messageObservable)

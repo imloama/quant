@@ -12,7 +12,8 @@ import {
     mergeMap,
     mergeMapTo,
     throttleTime,
-    toArray
+    toArray,
+    delay
 } from 'rxjs/operators';
 
 import config from '../config'
@@ -78,7 +79,7 @@ export default class SpotKlineStorage {
                     }
                 ]),
                 mergeMap(data => from(data)),
-                concatMap(data => MarketAPI.klineReq(pool, symbol, period, data.begin, data.end)),
+                concatMap(data => MarketAPI.klineReq(pool, symbol, period, data.begin, data.end).pipe(delay(500))),
                 concatMap(datas => SpotKlineStorage.batchSaveOrUpdateOrders(datas))
             )
     }

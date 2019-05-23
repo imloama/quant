@@ -16,7 +16,8 @@ import {
     filter,
     flatMap,
     map,
-    share
+    share,
+    tap
 }
 from 'rxjs/operators';
 
@@ -26,6 +27,8 @@ import {
 import {
     awsParams
 } from '../config';
+import {rest, cons} from '../base';
+import {aws} from '.';
 
 export default class AccountAPI {
 
@@ -91,6 +94,32 @@ export default class AccountAPI {
             filter(msg => msg.topic === OP_ACCOUNTS && msg.op === NOTIFY),
             flatMap(msg => from(msg.data.list)),
             share()
+        )
+    }
+
+    static getAccountInfoByHttp (){
+        return from(
+            rest.get(cons.AccountAPI + cons.Accounts, aws.addSignature({
+                url: cons.AccountAPI + cons.Accounts,
+                method: cons.GET
+            }, awsParams)
+            ).pipe(
+                filter(data => data.status === 'ok'),
+                map(data => data.data)
+            )
+        )
+    }
+
+    static getAccountBalanceByHttp (accountId){
+        return from(
+            rest.get(cons.AccountAPI + cons.Accounts +`/${accountId}/balance`, aws.addSignature({
+                url: cons.AccountAPI + cons.Accounts +`/${accountId}/balance`,
+                method: cons.GET
+            }, awsParams)
+            ).pipe(
+                filter(data => data.status === 'ok'),
+                map(data => data.data)
+            )
         )
     }
 }
