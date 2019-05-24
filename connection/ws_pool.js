@@ -60,7 +60,7 @@ export default class WebsocketPool {
         messageObservable.pipe(
             filter(data => data.messageType === 'close')
         ).subscribe(
-           this.reConnect,
+           ()=>this.reConnect(),
            cons.EMPTY_ERR_HANDLER 
         )
 
@@ -104,7 +104,7 @@ export default class WebsocketPool {
             },
             err => {
                 getLogger().error(err)
-                from([1]).pipe(delay(1000 * 5)).subscribe(this.reConnect)
+                from([1]).pipe(delay(1000 * 5)).subscribe(()=>this.reConnect())
             }
         )
     }
