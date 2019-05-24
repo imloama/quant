@@ -17,7 +17,8 @@ import SpotAccount from './connection/spot_pool';
 import SpotMarket from './connection/spot_market_pool';
 
 import {
-    awsParams
+    awsParams,
+    kilne
 } from './config';
 import AccountBalance from './handler/account_balance'
 import {
@@ -37,10 +38,13 @@ const main = function main () {
     //初始化数据库信息
     types.init()
 
-    //start message pool
-    const spotMarketPool = new SpotMarket()
-    spotMarketPool.start()
+    if(kilne && kilne.open === true){
+        const spotMarketPool = new SpotMarket()
+        spotMarketPool.start()
+        new SpotKlineStorage().appendHistoryKlines(spotMarketPool)
+    }
 
+    //start message pool
     const spotAccountPool = new SpotAccount()
     spotAccountPool.start()
 
@@ -64,8 +68,6 @@ const main = function main () {
         () => grid.start(spotAccountPool),
         err => getLogger().error(err)
     )
-
-    new SpotKlineStorage().appendHistoryKlines(spotMarketPool)
 }
 
 if (awsParams.key) {
