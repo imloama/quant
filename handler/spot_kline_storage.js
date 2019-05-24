@@ -93,8 +93,8 @@ export default class SpotKlineStorage {
         this.fillHistorySubscription = this.timely.pipe(
             mergeMapTo(from(arrSymbolPeriod)),
             concatMap(symbolPeriod => SpotKlineStorage.autoFillHistoryInfo(pool, symbolPeriod.symbol, symbolPeriod.period)),
-            throttleTime(config.klineReqInterval),
-        ).subscribe(() => timer(config.klineReqInterval).pipe().subscribe(() => this.timely.next(1)))
+            throttleTime(config.kilne.reqInterval),
+        ).subscribe(() => timer(config.kilne.reqInterval).pipe().subscribe(() => this.timely.next(1)))
 
         this.timely.next(1)
     }

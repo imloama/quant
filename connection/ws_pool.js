@@ -54,9 +54,9 @@ export default class WebsocketPool {
 
         //restart when closed
         messageObservable.pipe(
-            filter(data => data.messageType=== 'close')
+            filter(data => data.messageType === 'close')
         ).subscribe(
-            this.restartSubject.next(1),
+            () => this.restartSubject.next(1),
            cons.EMPTY_ERR_HANDLER 
         )
 
