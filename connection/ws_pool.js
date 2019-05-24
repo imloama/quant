@@ -87,25 +87,23 @@ export default class WebsocketPool {
     }
 
     heartbeat (messageObservable) {
-        let lastReceived = ''
-
         this.heartbeatSubscription = merge(
             interval(this.aliveCheckInterval).pipe(mapTo('timer')),
             messageObservable
         ).subscribe(
             data => {
-                if (lastReceived === 'timer' && data === 'timer') {
+                if (this.lastReceivedData === 'timer' && data === 'timer') {
                     this.reConnect()
 
                     return
                 }
 
-                lastReceived = data
+                this.lastReceivedData = data
 
                 this.responseHeartbeatFunc(data)
             },
             err => {
-                console.error(err);
+                getLogger().error(err)
                 from([1]).pipe(delay(1000 * 5)).subscribe(this.reConnect)
             }
         )
