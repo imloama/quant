@@ -24,9 +24,13 @@ export default class WebsocketPool {
     constructor (url, aliveCheckInterval = 30000, responseHeartbeatFunc) {
         this.url = url
         this.client = null
+
         this.messageQueue = new Subject()
 
         this.restartSubject = new Subject()
+
+        this.heartbeatSubscription = null
+        this.lastReceivedData = ''
 
         this.aliveCheckInterval = aliveCheckInterval
 
@@ -56,7 +60,7 @@ export default class WebsocketPool {
         messageObservable.pipe(
             filter(data => data.messageType === 'close')
         ).subscribe(
-            () => this.restartSubject.next(1),
+           this.reConnect,
            cons.EMPTY_ERR_HANDLER 
         )
 
@@ -69,24 +73,29 @@ export default class WebsocketPool {
             this.client.send(JSON.stringify(messaage))
         } catch (err) {
             getLogger().error(err)
-            this.restartSubject.next(2)
+            this.reConnect()
         }
     }
 
+    reConnect (){
+        if(this.heartbeatSubscription){
+            this.heartbeatSubscription.unsubscribe()
+        }
+
+        this.lastReceivedData = ''
+        this.restartSubject.next(2)
+    }
 
     heartbeat (messageObservable) {
         let lastReceived = ''
 
-        const subscription = merge(
+        this.heartbeatSubscription = merge(
             interval(this.aliveCheckInterval).pipe(mapTo('timer')),
             messageObservable
         ).subscribe(
             data => {
                 if (lastReceived === 'timer' && data === 'timer') {
-                    lastReceived = ''
-                    subscription.unsubscribe()
-                    // restart all 
-                    this.restartSubject.next(1)
+                    this.reConnect()
 
                     return
                 }
@@ -97,7 +106,7 @@ export default class WebsocketPool {
             },
             err => {
                 console.error(err);
-                from([1]).pipe(delay(1000 * 5)).subscribe(() => this.restartSubject.next(2))
+                from([1]).pipe(delay(1000 * 5)).subscribe(this.reConnect)
             }
         )
     }
