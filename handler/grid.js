@@ -158,7 +158,7 @@ export default class Grid {
             toArray(),
             filter(orders => this.checkAccountBalanceBeforePlaceOrder(orders)),
             mergeMap(orders => from(orders)),
-            concatMap(order => OrderAPI.orderPlaceReqByHttp(order)),
+            concatMap(order => OrderAPI.orderPlaceReqByHttp(order).pipe(delay(1000))),
             filter(data => data.status === 'ok'),
             map(data => data.data),
             //save into db
