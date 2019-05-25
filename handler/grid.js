@@ -1,7 +1,8 @@
 import {
     from,
     of,
-    zip
+    zip,
+    timer
 } from 'rxjs';
 
 import {
@@ -290,7 +291,7 @@ export default class Grid {
                 return result
             }),
             mergeMap(arrArrIds => from(arrArrIds)),
-            concatMap(orderIds => OrderAPI.orderBatchCancelByHttp(orderIds)),
+            concatMap(orderIds => OrderAPI.orderBatchCancelByHttp(orderIds).pipe(delay(1000))),
             flatMap(data => from(data.success)),
             concatMap(orderId => from(types.Orders.update({
                 'order-state': cons.OrderState.canceled
@@ -343,8 +344,18 @@ export default class Grid {
     start (accountPool) {
         getLogger().info('grid strategy starting...')
 
-        this.handleOpenTasks(accountPool)
-        //cancel closed tasks
-        Grid.handleClosedTasks()
+        if(this.timerSubscription){
+            this.timerSubscription.unsubscribe()
+        }
+
+        //check task info periodly 
+        this.timerSubscription = timer(0, 1000*60).subscribe(
+            ()=>{
+                this.handleOpenTasks(accountPool)
+                //cancel closed tasks
+                Grid.handleClosedTasks()
+            }
+        )
+
     }
 }
