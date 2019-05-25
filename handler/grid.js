@@ -13,7 +13,6 @@ import {
     flatMap,
     map,
     mergeMap,
-    share,
     tap,
     toArray
 } from 'rxjs/operators';
@@ -43,14 +42,15 @@ export default class Grid {
     }
 
     //checkout task 0 closed 1 normal
-    static getTasksByState (state) {
+    static getTasksByStates (states) {
         return from(types.sequelize.authenticate()).pipe(
             mergeMap(() => from(types.Tasks.findAll({
                 where: {
-                    state
+                    state: {
+                        [Op.in]: states
+                    }
                 }
             }))),
-            share()
         )
     }
 
@@ -159,7 +159,7 @@ export default class Grid {
             toArray(),
             filter(orders => this.checkAccountBalanceBeforePlaceOrder(orders)),
             mergeMap(orders => from(orders)),
-            concatMap(order => OrderAPI.orderPlaceReqByHttp(order).pipe(delay(1000))),
+            concatMap(order => OrderAPI.orderPlaceReqByHttp(order).pipe(delay(200))),
             filter(data => data.status === 'ok'),
             map(data => data.data),
             //save into db
@@ -274,7 +274,7 @@ export default class Grid {
     }
 
     static handleClosedTasks () {
-        Grid.getTasksByState(0).pipe(
+        Grid.getTasksByStates([0]).pipe(
             mergeMap(tasks => from(tasks)),
             concatMap(task => Grid.getTaskOpenOrders(task.id)),
             mergeMap(orders => from(orders)),
@@ -306,15 +306,15 @@ export default class Grid {
         )
     }
 
-    handleOpenTasks (accountPool) {
+    subTaskOrderChanges (accountPool) {
         if (this.subscriptions) {
             this.subscriptions.unsubscribe()
         }
 
-        //open tasks
-        const taskObservable = Grid.getTasksByState(1)
-
-        this.subscriptions = taskObservable.pipe(
+        this.subscriptions = Grid.getTasksByStates([
+            0, 
+            1
+        ]).pipe(
             mergeMap(tasks => from(tasks)),
             map(task => task.symbol),
             distinct(),
@@ -325,9 +325,10 @@ export default class Grid {
         ).subscribe(data => {
             this.orderSubHandler(data)
         })
+    }
 
-        taskObservable.pipe(
-            delay(2000),
+    handleOpenTasks () {
+        Grid.getTasksByStates([1]).pipe(
             mergeMap(tasks => from(tasks)),
             concatMap(task => zip(of(task), Grid.getTaskOpenOrders(task.id))),
             concatMap(([
@@ -351,9 +352,17 @@ export default class Grid {
         //check task info periodly 
         this.timerSubscription = timer(0, 1000*60).subscribe(
             ()=>{
-                this.handleOpenTasks(accountPool)
-                //cancel closed tasks
-                Grid.handleClosedTasks()
+                //open tasks
+                this.subTaskOrderChanges(accountPool)
+
+                //delay to wait for sub done.
+                timer(2000).subscribe(
+                    ()=>{
+                        this.handleOpenTasks()
+                        //cancel closed tasks
+                        Grid.handleClosedTasks()
+                    }
+                )
             }
         )
 
