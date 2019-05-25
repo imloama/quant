@@ -52,7 +52,7 @@ const calcBalance = async function calcBalance (symbol, gridPrices, gridAmount, 
         if(price.gte(curPrice)){
             needBalanceMap.set(symbolInfo.trader, needBalanceMap.get(symbolInfo.trader).plus(new BigNumber(gridAmount)))
         }else {
-            needBalanceMap.set(symbolInfo.trader, needBalanceMap.get(symbolInfo.base).plus(new BigNumber(gridAmount).times(price)))
+            needBalanceMap.set(symbolInfo.base, needBalanceMap.get(symbolInfo.base).plus(new BigNumber(gridAmount).times(price)))
         }
     });
 
