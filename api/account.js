@@ -68,8 +68,7 @@ export default class AccountAPI {
 
         return pool.messageQueue.pipe(
             filter(data => data.topic === REQ_ACCOUNTS_LIST && data.op === REQ),
-            map(data => data.data),
-            share()
+            map(data => data.data)
         )
     }
 
