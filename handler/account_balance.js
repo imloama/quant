@@ -29,15 +29,14 @@ export default class AccountBalance {
     start (pool) {
         getLogger().info('account balance monitor starting...')
        
-        if(this.accountReqSub){
-            this.accountReqSub.complete()
-        }
-
-        this.accountReqSub = AccountAPI.accountReq(pool).pipe(share())
-
         const accountStartSub = new Subject()
 
-        this.accountReqSub.pipe(
+        const accountReqSub = AccountAPI.accountReq(pool).pipe(share())
+
+        if(this.sub1){
+            this.sub1.unsubscribe()
+        }
+        this.sub1 = accountReqSub.pipe(
             take(1),
             //打散成多个账户
             flatMap(datas => from(datas)),
@@ -77,12 +76,15 @@ export default class AccountBalance {
             err => getLogger().error(err) 
         )
 
-        this.accountReqSub.subscribe(() => accountStartSub.next(1))
+        if(this.sub2){
+            this.sub2.unsubscribe()
+        }
 
-        this.accountReqSub.pipe(
+        this.sub2 = accountReqSub.pipe(
             mergeMapTo(AccountAPI.accountSub(pool))
         ).subscribe(
             data => {
+                accountStartSub.next(1)
                 getLogger('debug').debug(JSON.stringify(data))
                 if (!this.account[data['account-id']][data.currency]) {
                     this.account[data['account-id']][data.currency] = {}
