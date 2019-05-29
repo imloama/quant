@@ -33,5 +33,9 @@ module.exports = {
     kilne: {
         open: false,
         reqInterval: 1000 * 30
+    },
+
+    grid: {
+        taskCheckInterval: 1000 * 60 * 3
     }
 }

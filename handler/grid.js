@@ -34,6 +34,7 @@ import {
 } from '../base/common'
 import OrderAPI from '../api/order';
 import MarketAPI from '../api/spot_market';
+import config from '../config'
 
 export default class Grid {
     constructor (accountBalance) {
@@ -350,7 +351,9 @@ export default class Grid {
         }
 
         //check task info periodly 
-        this.timerSubscription = timer(0, 1000*60).subscribe(
+        this.timerSubscription = timer(0, config.grid.taskCheckInterval
+            ? config.grid.taskCheckInterval
+            : 1000*60).subscribe(
             ()=>{
                 //open tasks
                 this.subTaskOrderChanges(accountPool)
@@ -365,6 +368,5 @@ export default class Grid {
                 )
             }
         )
-
     }
 }

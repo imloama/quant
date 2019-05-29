@@ -1,5 +1,5 @@
 import {Tasks, init} from '../base/types'
-import {filter, mergeMap, take, flatMap, switchMap, map, reduce, groupBy, tap, concatMap} from 'rxjs/operators';
+import {filter, mergeMap, take, flatMap, map, reduce, concatMap} from 'rxjs/operators';
 import {getGridPrices, getRate} from './calc'
 
 import BigNumber from 'bignumber.js';
@@ -9,7 +9,6 @@ import MarketAPI from '../api/spot_market';
 import config from '../config'
 import AccountAPI from '../api/account';
 import {getSymbolInfo} from '../base/common';
-import {getLogger} from 'log4js';
 
 const priceAndAmountPrompt = function priceAndAmountPrompt (symbolInfo, marketInfo){
      //input params
@@ -74,8 +73,6 @@ const calcBalance = async function calcBalance (symbol, gridPrices, gridAmount, 
 
     return new BigNumber(balanceMap.get(symbolInfo.base)).gte(needBalanceMap.get(symbolInfo.base)) &&  
         new BigNumber(balanceMap.get(symbolInfo.trader)).gte(needBalanceMap.get(symbolInfo.trader))
-    
-
 }
 
 const main = async function main (){

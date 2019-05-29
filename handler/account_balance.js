@@ -51,8 +51,8 @@ export default class AccountBalance {
                 acc.state = data.state
                 acc['account-type'] = data.type
 
-                if (!acc.forzen) {
-                    acc.forzen = new BigNumber(0)
+                if (!acc.frozen) {
+                    acc.frozen = new BigNumber(0)
                 }
                 acc.available = acc.trade
                 Reflect.deleteProperty(acc, 'trade')
@@ -72,7 +72,7 @@ export default class AccountBalance {
         data => {
             this.account[data.id] = data
         },
-        err => console.error(err)
+        err => getLogger().error(err) 
     )
 
         accountReqSub.subscribe(
