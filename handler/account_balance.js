@@ -95,7 +95,7 @@ export default class AccountBalance {
                     getLogger().info(this.account)
                 }
             },
-            getLogger().error
+            err => getLogger().error(err)
         )
 
         return accountStartSub
