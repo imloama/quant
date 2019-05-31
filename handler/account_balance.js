@@ -84,7 +84,6 @@ export default class AccountBalance {
             mergeMapTo(AccountAPI.accountSub(pool))
         ).subscribe(
             data => {
-                accountStartSub.next(1)
                 getLogger('debug').debug(JSON.stringify(data))
                 if (!this.account[data['account-id']][data.currency]) {
                     this.account[data['account-id']][data.currency] = {}
@@ -96,6 +95,14 @@ export default class AccountBalance {
                 }
             },
             err => getLogger().error(err)
+        )
+
+        if(this.sub3){
+            this.sub3.unsubscribe()
+        }
+
+        this.sub3 = accountReqSub.subscribe(
+            ()=> accountStartSub.next(1)
         )
 
         return accountStartSub
