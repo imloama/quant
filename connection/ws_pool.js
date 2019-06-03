@@ -5,8 +5,7 @@ import {
     merge
 } from 'rxjs';
 import {
-    cons,
-    ws
+    cons
 } from '../base';
 import {
     delay,
@@ -18,19 +17,16 @@ import {
 import {
     getLogger
 } from 'log4js';
+import Client from './client';
 
 export default class WebsocketPool {
 
     constructor (url, aliveCheckInterval = 30000, responseHeartbeatFunc) {
         this.url = url
-        this.client = null
 
         this.messageQueue = new Subject()
 
         this.restartSubject = new Subject()
-
-        this.heartbeatSubscription = null
-        this.lastReceivedData = ''
 
         this.aliveCheckInterval = aliveCheckInterval
 
@@ -45,8 +41,8 @@ export default class WebsocketPool {
     }
 
     start () {
-        this.client = ws.create(this.url)
-        const messageObservable = ws.buildObservable(this.client)
+        this.client = new Client(this.url) 
+        const messageObservable = this.client.connect() 
 
         messageObservable.subscribe(
             data => {
