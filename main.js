@@ -1,71 +1,65 @@
 import {
     from,
-    zip,
     of
 } from 'rxjs';
 import {
-    logger,
-    types
+    logger
 } from './base';
 import {
-    mergeMap,
     tap,
     delay
 } from 'rxjs/operators';
 
 import SpotAccount from './connection/spot_pool';
-import SpotMarket from './connection/spot_market_pool';
 
 import {
     awsParams,
-    kilne
+    db
 } from './config';
-import AccountBalance from './handler/account_balance'
 import {
     getLogger
 } from 'log4js';
 
 import inquirer from 'inquirer'
-import OrderStorage  from './handler/spot_order_storage'
-import AccountAPI from './api/account';
-import SpotKlineStorage from './handler/spot_kline_storage';
-import Grid from './handler/grid';
 import process from 'process'
+import Auth from './service/auth';
+import Order from './service/order';
+import Sequelize from 'sequelize'
+import Account from './service/account';
+import Grid from './strategy/grid';
 
 
 const main = function main () {
     logger.init()
-    //初始化数据库信息
-    types.init()
 
-    if(kilne && kilne.open === true){
-        const spotMarketPool = new SpotMarket()
-        spotMarketPool.start()
-        new SpotKlineStorage().appendHistoryKlines(spotMarketPool)
-    }
+    const sequelize = new Sequelize(db.database, db.username, db.password, {
+        dialect: db.type,
+        operatorsAliases: false,
+        logging: false,
+
+        pool: {
+            max: 5,
+            min: 0,
+            acquire: 30000,
+            idle: 10000
+        },
+
+    // 仅限 SQLite
+        storage: db.storage
+    });
 
     //start message pool
     const spotAccountPool = new SpotAccount()
     spotAccountPool.start()
 
-    //send auth message
-    const accountAPI = new AccountAPI()
-    const authPassedSubject = accountAPI.sendAuth(spotAccountPool)
+    const authService = new Auth(awsParams.id, awsParams.key)
+    const orderService = new Order(sequelize, spotAccountPool, authService)
+    const accountService = new Account(authService)
 
-    const account = new AccountBalance()
-    const orderStorage = new OrderStorage()
-    const grid = new Grid(account)
+    const grid = new Grid(sequelize, authService, orderService, accountService) 
 
-    authPassedSubject.pipe(
-        mergeMap(() => zip(
-            //req account info and sub account change
-            account.start(spotAccountPool),
-            //save order info to storage
-            orderStorage.start(spotAccountPool),
-        ))
-    ).subscribe(
-        //start grid stragy
-        () => grid.start(spotAccountPool),
+    authService.sendAuth(spotAccountPool).subscribe(
+        ()=> grid.start(),
         err => getLogger().error(err)
     )
 }
