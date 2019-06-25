@@ -7,5 +7,3 @@ exports.logger = require('./logger')
 exports.rest = require('./rest')
 
 exports.types = require('./types')
-
-exports.ws = require('./ws')

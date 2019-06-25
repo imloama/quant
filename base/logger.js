@@ -16,6 +16,9 @@ const registerErr = function registerErr () {
         arrArgs.push(message)
         arrArgs.push(args)
         Reflect.apply(orgLogger, getLogger(), arrArgs)
+        if(true){
+            return
+        }
 
         //call dingding
         if (message instanceof Error) {

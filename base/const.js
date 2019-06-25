@@ -47,8 +47,9 @@ export const    OrderType= {
 }
 export const    OrderState= {
     filled: 'filled',         
-    submitted: 'submitted',      
     partialFilled: 'partial-filled',
+    submitted: 'submitted',      
+    partialCanceled: 'partial-canceled',
     canceled: 'canceled'
 }
 export const    BaseCurrency= [
