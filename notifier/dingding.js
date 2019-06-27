@@ -34,19 +34,6 @@ const sendMsg = function sendMsg (message){
 }
 
 const sendAlert = function sendAlert (message){
-
-    /*
-     * let msgObj = null
-     * if(typeof message === 'string'|| message instanceof String){
-     *     msgObj = JSON.parse(message)
-     * }else {
-     *     msgObj = message
-     * }
-     */
-
-    // console.error(JSON.stringify(message, null, 2))
-
-    
     post(notifier.dingding.webhook, {
         msgtype: 'text',
         text: {

@@ -1,8 +1,9 @@
-import Sequelize from 'sequelize'
+import Sequelize, {where, Op} from 'sequelize'
 import {rest, cons} from '../base';
 import {from, empty, of} from 'rxjs';
-import {map, flatMap, toArray, concatMap, tap, filter, reduce, mergeMap, expand, delay, takeUntil, takeWhile} from 'rxjs/operators';
+import {map, flatMap, toArray, concatMap, tap, filter, reduce, mergeMap, expand, delay, takeUntil, takeWhile, zip} from 'rxjs/operators';
 import {getLogger} from 'log4js';
+import {OrderState} from '../base/const';
 
 export default class Order {
     constructor (sequelize, pool, authService){
@@ -10,7 +11,9 @@ export default class Order {
 
         //init db info
         this.dbTable = Order.initDB(sequelize)
-        this.dbTable.sync()
+        this.dbTable.sync({
+            force: false 
+        })
 
         //ws pool
         this.pool = pool
@@ -124,7 +127,33 @@ export default class Order {
                 return data
             }),
             toArray(),
-        )
+        ).toPromise()
+    }
+
+    batchCancel (orderIds) {
+        const batchIds = []
+
+        while (orderIds.length > 50) {
+            batchIds.push(orderIds.slice(0, 51))
+            //eslint-disable-next-line
+            orderIds = orderIds.slice(51)
+        }
+        if (orderIds.length > 0) {
+            batchIds.push(orderIds)
+        }
+
+        const url = cons.AccountAPI + cons.BatchCancelOrder
+
+        return from(batchIds).pipe(
+            concatMap(ids => rest.post(url, {
+                'order-ids': ids
+            }, this.auth.addSignature(url, cons.POST, {}))),
+            map(data => data.data.success),
+            reduce((acc, value)=> {
+                acc.push(value)
+                return acc
+            }, [])
+        ).toPromise()
     }
 
     // insert or update
@@ -217,8 +246,48 @@ export default class Order {
                 Reflect.deleteProperty(result, 'field-fees')
 
                 return result
-            }).toPromise()
-        )
+            })
+        ).toPromise()
+    }
+
+    getRecentOrders (params) {
+        const url = cons.AccountAPI + cons.OrderHistory
+
+        const newParams = this.auth.addSignature(url, cons.GET, params)
+
+        return from(rest.get(url, newParams)).pipe(
+            tap(console.log),
+            flatMap(data => from(data.data)),
+            map(data => {
+                data['order-id'] = data.id
+                Reflect.deleteProperty(data, 'id')
+
+                data['order-amount'] = data.amount
+                Reflect.deleteProperty(data, 'amount')
+
+                data['order-state'] = data.state
+                Reflect.deleteProperty(data, 'state')
+
+                data['order-type'] = data.type
+                Reflect.deleteProperty(data, 'type')
+
+                data['order-source'] = data.source
+                Reflect.deleteProperty(data, 'source')
+
+                data['filled-amount'] = data['field-amount']
+                Reflect.deleteProperty(data, 'field-amount')
+
+                data['filled-cash-amount'] = data['field-cash-amount']
+                Reflect.deleteProperty(data, 'field-cash-amount')
+
+                data['filled-fees'] = data['field-fees']
+                Reflect.deleteProperty(data, 'field-fees')
+
+
+                return data
+            }),
+            toArray()
+        ).toPromise()
     }
 
     getHistoryOrders (params) {
@@ -261,9 +330,10 @@ export default class Order {
         ).toPromise()
     }
 
-    placeOrder (symbol, price, amount, type){
+    placeOrder (accountID, symbol, price, amount, type){
         return rest.post(cons.AccountAPI + cons.PlaceOrder,
             {
+                'account-id': accountID,
                 symbol,
                 price,
                 amount,
@@ -277,60 +347,10 @@ export default class Order {
     }
 
 
-    async saveMissedOrders (symbol) {
-        const statesPrams = encodeURIComponent([
-            cons.OrderState.submitted
-
-            /*
-             * cons.OrderState.partialFilled,
-             * cons.OrderState.filled,
-             * cons.OrderState.canceled
-             */
-            
-        ].join(','))
-
-        await from(this.dbTable.findOne({
-            order: [
-                [
-                    'order-id',
-                    'DESC'
-                ]
-            ]
+    async saveMissedOrders () {
+        await from(this.getRecentOrders({
+            size: 1000
         })).pipe(
-            map(data => {
-                if(!data) {
-                    return {
-                        'order-id': 0
-                    }
-                }
-                return data
-            }),
-            tap(data => getLogger().info(`prepare to load history after:${data['created-at']}`)),
-            flatMap(data => from(this.getHistoryOrders({
-                symbol,
-                // from: data['order-id'] + 1,
-                states: statesPrams,
-                direct: 'prev',
-                size: 1000
-            })).pipe(
-
-                /*
-                 * expand(data => {
-                 *     console.log(data.length)
-                 *     return from(this.getHistoryOrders({
-                 *         symbol,
-                 *         // from: data[0]['order-id'] + 1,
-                 *         direct: 'next',
-                 *         states: statesPrams,
-                 *         size: 1000
-                 *     }))
-                 * }),
-                 * takeWhile(datas => datas.length > 0),
-                 */
-
-            )),
-            tap(console.log),
-            reduce((acc, value)=> acc.concat(value), []),
             map(orders => from(this.saveOrders(orders)))
         ).toPromise()
     }
@@ -338,16 +358,21 @@ export default class Order {
     async syncOrderInfo (symbol){
         getLogger().info('sync order info...')
 
-        // find all orders
-        await this.saveMissedOrders(symbol)
-
         //update order state
-        await this.getOpenOrders().pipe(
+        await from(this.loadOrdersFromDB({where: {'order-state': {
+            [Op.notIn]: [
+                OrderState.filled,
+                OrderState.canceled
+            ]
+        }}})).pipe(
             mergeMap(orders => from(orders).pipe(delay(500))),
             concatMap(order => from(this.getOrderDetailInfo(order['order-id']))),
             filter(data => data['order-state'] !== cons.OrderState.submitted),
             toArray(),
             mergeMap(orders => from(this.saveOrders(orders)))
         ).toPromise()
+
+        // find all orders
+        await this.saveMissedOrders(symbol)
     }
 }

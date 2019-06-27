@@ -35,14 +35,14 @@ export default class Auth {
 
     addSignature (url, method, params) {
         const timeStamp = Auth.getUTCTime()
-        params.Timestamp = encodeURIComponent(timeStamp)
+        params.Timestamp = timeStamp
         params.SignatureMethod = 'HmacSHA256'
         params.SignatureVersion = '2'
         params.AccessKeyId = this.id
 
         const sorted = {}
         Object.keys(params).sort().forEach(key => {
-            sorted[key] = params[key]
+            sorted[key] = encodeURIComponent(params[key])
         })
 
 
@@ -55,8 +55,6 @@ export default class Auth {
         getLogger().info(toBeSigned)
         const signature = crypto.createHmac('sha256', this.key).update(toBeSigned, 'utf8').digest('base64')
         params.Signature = signature
-
-        params.Timestamp = timeStamp
 
         return params
     }

@@ -7,7 +7,6 @@ export default class SpotMarket extends WebsocketPool {
     constructor () {
         super(cons.MarketWebSocket, config.messagePoolAliveCheckInterval)
         this.responseHeartbeatFunc = this.handleHeartbeat
-
     }
 
     handleHeartbeat (data) {

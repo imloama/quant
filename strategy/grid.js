@@ -1,11 +1,12 @@
 import Sequelize, {Op} from 'sequelize'
-import {from} from 'rxjs';
-import {mergeMap, map, flatMap, toArray, filter, reduce, concatMap, delay} from 'rxjs/operators'
+import {from, Subject, of, interval, zip} from 'rxjs';
+import {mergeMap, map, flatMap, toArray, filter, reduce, concatMap, delay, tap, debounceTime, catchError} from 'rxjs/operators'
 import {cons} from '../base';
 import market from '../service/market';
 import BigNumber from 'bignumber.js';
 import {getLogger} from 'log4js';
 import {getSymbolInfo} from '../base/common';
+import * as config from '../config'
 
 export default class Grid {
 
@@ -15,10 +16,37 @@ export default class Grid {
         this.accountService = accountService
 
         this.DBTask = Grid.initDB(sequelize)
-        this.DBTask.sync()
+        this.DBTask.sync({
+            force: false 
+        })
 
         this.TaskOrderTable = Grid.initTaskOrderTable(sequelize)
-        this.TaskOrderTable.sync()
+        this.TaskOrderTable.sync({
+            force: false 
+        })
+
+        this.taskCheckSubject = new Subject()
+
+        this.taskCheckSubject.pipe(
+            debounceTime(1000),
+            mergeMap(taskID => from(taskID
+                ? this.DBTask.findAll({
+                    where: {
+                        id: taskID
+                    }
+                })
+                : this.DBTask.findAll())),
+            mergeMap(tasks => from(tasks)),
+            concatMap(task => from(task.state === 1
+                 ? this.handleOpenTask(task)
+                 : this.handleClosedTask(task))),
+            catchError(err => of(`caught error:${err}`))
+        ).subscribe(
+            data => getLogger().info(data)
+        )
+
+        //check periodly
+        interval(config.grid.taskCheckInterval).subscribe(()=> this.taskCheckSubject.next(null))
     }
 
     static initTaskOrderTable (sequelize) {
@@ -33,7 +61,7 @@ export default class Grid {
                     type: Sequelize.INTEGER(11)
                 },
                 'order-id': {
-                    type: Sequelize.INTEGER(11)
+                    type: Sequelize.BIGINT
                 }},
             {
                 indexes: [
@@ -43,7 +71,14 @@ export default class Grid {
                             'task-id',
                             'order-id'
                         ]
+                    },
+                    {
+                        fields: ['task-id']
+                    },
+                    {
+                        fields: ['order-id']
                     }
+
                 ]
             })
     }
@@ -87,22 +122,38 @@ export default class Grid {
     }
 
     async start (){
-        //sub order info
-
         //check task info 
-        await from(this.getOpenTasks()).pipe(
+        await from(this.DBTask.findAll()).pipe(
+            tap(tasks => this.addOrderSubscriber(tasks)),
             mergeMap(tasks => from(tasks)),
-            concatMap(task => from(this.handleOpenTask(task))),
+            tap(()=>console.warn('hhhhhhhhhhhhhhhhhhhhhhh')),
+            //sync order to lastesd
+            concatMap(task => zip(of(task), from(this.orderService.syncOrderInfo(task.symbol)))),
+            concatMap(([task]) => from(task.state === 1
+                 ? this.handleOpenTask(task)
+                 : this.handleClosedTask(task))),
             toArray()
         ).toPromise()
     }
 
-    getOpenTasks (){
-        return  this.DBTask.findAll({
-            where: {
-                state: 1
-            }
-        })
+    addOrderSubscriber (tasks){
+        from(tasks).pipe(
+            map(task => task.symbol),
+            toArray(),
+            mergeMap(symbols => this.orderService.orderSub(symbols)),
+            concatMap(order => zip(of(order), from(this.orderService.saveOrder(order)))),
+            filter(order => order['order-state'] === cons.OrderState.filled),
+            map(([order])=> order['order-id']),
+            concatMap(orderID => this.TaskOrderTable.findOne({
+                where: {
+                    'order-id': orderID
+                }
+            })),
+            filter(data =>data),
+        ).subscribe(
+            data => this.taskCheckSubject.next(data['task-id']),
+            err => getLogger().error(err) 
+        )
     }
 
     getTaskOpenOrders (taskId) {
@@ -132,10 +183,6 @@ export default class Grid {
 
     async handleOpenTask (task) {
         getLogger().info(`handle open tasks:${JSON.stringify(task)}`)
-
-        //sync order to lastesd
-        await this.orderService.syncOrderInfo(task.symbol)
-
         //get current price
         const curPrice = await market.getMergedDetail(task.symbol).then(data => data.close)
 
@@ -152,10 +199,10 @@ export default class Grid {
         //check out lack price
         const lackPrices = await from(task['grid-prices'].split(',')).pipe(
             filter(price => !orderPrices.has(price) &&
-             new BigNumber(price).minus(new BigNumber(curPrice)).abs().div(BigNumber.min(curPrice, price)).compareTo(new BigNumber(task['grid-rate']).div(2)) >= 0),
+             new BigNumber(price).minus(new BigNumber(curPrice)).abs().div(BigNumber.min(curPrice, price)).comparedTo(new BigNumber(task['grid-rate']).div(2)) >= 0),
             map(price => ({
                 price,
-                orderType: new BigNumber(price).compareTo(curPrice) <=0 
+                orderType: new BigNumber(price).comparedTo(curPrice) <=0 
                 ?cons.OrderType.buyLimitMaker
                 : cons.OrderType.sellLimitMaker
             })),
@@ -185,8 +232,8 @@ export default class Grid {
             }
         })
 
-        const balance = await from(this.accountService.getAccountByType('spot')).pipe(
-            mergeMap(account => from(this.accountService.getBalance(account))),
+        const account = await this.accountService.getAccountByType('spot');
+        const balance = await from(this.accountService.getBalance(account)).pipe(
             flatMap(data => data.list),
             filter(balance => balance.type === 'trade'),
             reduce((acc, value)=> {
@@ -195,19 +242,40 @@ export default class Grid {
             }, new Map())
         ).toPromise()
         
-        for(const key in balanceNeeded.keys){
-            if(new BigNumber(balanceNeeded.get(key)).comparedTo(new BigNumber(balance.get(key).balance))>0){
-                getLogger().warn(`task ${task.id} need ${key} ${balanceNeeded.get(key)}, but account just has ${balance.get(key).balance}`)
+        for(const [
+                key,
+                value
+                ] of balanceNeeded){
+            if(new BigNumber(value).comparedTo(new BigNumber(balance.get(key).balance))>0){
+                getLogger().warn(`task ${task.id} need ${key} ${value}, but account just has ${balance.get(key).balance}`)
                 return
             }
+
+            getLogger().info(`task ${task.id} need ${key} ${value}, account has ${balance.get(key).balance}`)
         }
 
         //place order
         await from(lackPrices).pipe(
-            concatMap(priceInfo => this.orderService.placeOrder(task.symbol, priceInfo.price, task['grid-amount'], priceInfo.orderType)).pipe(delay(200)),
-            toArray()
+            concatMap(priceInfo => this.orderService.placeOrder(account.id, task.symbol, priceInfo.price, task['grid-amount'], priceInfo.orderType, task.id).pipe(delay(200))),
+            map(placeResult => ({
+                'task-id': task.id,
+                'order-id': placeResult.data
+            })),
+            toArray(),
+            concatMap(data => this.TaskOrderTable.bulkCreate(data))
         ).toPromise()
     }
 
+    async handleClosedTask (task){
+        getLogger().info(`handle closed tasks:${JSON.stringify(task)}`)
+        //get task orders
+        const result = await from(this.getTaskOpenOrders(task.id)).pipe(
+            flatMap(orders => from(orders)),
+            map(order => order['order-id']),
+            toArray(),
+            concatMap(orderIds => this.orderService.batchCancel(orderIds)),
+        ).toPromise()
 
+        getLogger().info(`batch cancel orders ${result} success`)
+    }
 }
