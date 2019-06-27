@@ -126,7 +126,6 @@ export default class Grid {
         await from(this.DBTask.findAll()).pipe(
             tap(tasks => this.addOrderSubscriber(tasks)),
             mergeMap(tasks => from(tasks)),
-            tap(()=>console.warn('hhhhhhhhhhhhhhhhhhhhhhh')),
             //sync order to lastesd
             concatMap(task => zip(of(task), from(this.orderService.syncOrderInfo(task.symbol)))),
             concatMap(([task]) => from(task.state === 1
