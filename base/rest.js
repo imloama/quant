@@ -9,7 +9,7 @@ const get = function get (host, params) {
 
     return from(
         new Promise((resolve, reject) => {
-            getLogger().info(host, params)
+            getLogger().debug(host, params)
             request.get(host, {
                 qs: params,
                 headers: {
@@ -31,7 +31,7 @@ const post = function post (host, params, queryParams) {
 
     return from(
         new Promise((resolve, reject) => {
-            getLogger().info(host, params)
+            getLogger().debug(host, params)
 
             request.post(host, {
                 headers: {
@@ -45,7 +45,7 @@ const post = function post (host, params, queryParams) {
                     return
                 }
 
-                getLogger('debug').debug(JSON.stringify(body))
+                getLogger().debug(JSON.stringify(body))
 
                 resolve(body)
             })

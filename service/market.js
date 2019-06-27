@@ -4,7 +4,7 @@ import {filter, map} from 'rxjs/operators';
 
 export default class market {
     static getMergedDetail (symbol) {
-        return from(rest.get(cons.marketHost + cons.MarketDetailMerged, {
+        return from(rest.get(cons.MarketAPI + cons.MarketDetailMerged, {
             symbol
         })).pipe(
             filter(data => data.status === 'ok'),
