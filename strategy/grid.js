@@ -1,6 +1,6 @@
 import Sequelize, {Op} from 'sequelize'
 import {from, Subject, of, interval, zip} from 'rxjs';
-import {mergeMap, map, flatMap, toArray, filter, reduce, concatMap, delay, tap, debounceTime, catchError} from 'rxjs/operators'
+import {mergeMap, map, flatMap, toArray, filter, reduce, concatMap, delay, tap, debounceTime, catchError, retry} from 'rxjs/operators'
 import {cons} from '../base';
 import market from '../service/market';
 import BigNumber from 'bignumber.js';
@@ -40,9 +40,11 @@ export default class Grid {
             concatMap(task => from(task.state === 1
                  ? this.handleOpenTask(task)
                  : this.handleClosedTask(task))),
-            catchError(err => of(`caught error:${err}`))
+            // catchError(err => of(`caught error:${err}`)),
+            retry(10),
         ).subscribe(
-            data => getLogger().info(data)
+            data => getLogger().info(data),
+            err => getLogger().error(err)
         )
 
         //check periodly
