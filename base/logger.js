@@ -54,7 +54,7 @@ const init = function init () {
                     'file',
                     'std'
                 ],
-                level: 'info'
+                level: 'debug'
             }
         }
     });

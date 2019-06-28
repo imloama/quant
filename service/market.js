@@ -11,4 +11,11 @@ export default class market {
             map(data => data.tick)
         ).toPromise()
     }
+
+    static getAllSymbolInfos (){
+        return from(rest.get(cons.MarketAPI + cons.MarketSymbols, {})).pipe(
+            filter(data => data.status === 'ok'),
+            map(data => data.data)
+        ).toPromise()
+    }
 }
