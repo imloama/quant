@@ -202,8 +202,11 @@ export default class Grid {
 
         //check out lack price
         const lackPrices = await from(task['grid-prices'].split(',')).pipe(
-            filter(price => !orderPrices.has(new BigNumber(price).toFixed(8)) &&
-             new BigNumber(price).minus(new BigNumber(curPrice)).abs().div(BigNumber.min(curPrice, price)).comparedTo(new BigNumber(task['grid-rate']).div(2)) >= 0),
+            filter(price => !orderPrices.has(new BigNumber(price).toFixed(8))),
+            toArray(),
+            filter(prices => prices.length > 1),
+            mergeMap(prices => from(prices)),
+            filter(price => new BigNumber(price).minus(new BigNumber(curPrice)).abs().div(BigNumber.min(curPrice, price)).comparedTo(new BigNumber(task['grid-rate']).div(2)) >= 0),
             tap(price => getLogger().debug(`price passed filter: ${price}`)),
             map(price => ({
                 price,
