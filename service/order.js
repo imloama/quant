@@ -256,7 +256,6 @@ export default class Order {
         const newParams = this.auth.addSignature(url, cons.GET, params)
 
         return from(rest.get(url, newParams)).pipe(
-            tap(console.log),
             flatMap(data => from(data.data)),
             map(data => {
                 data['order-id'] = data.id
@@ -296,7 +295,6 @@ export default class Order {
         const newParams = this.auth.addSignature(url, cons.GET, params)
 
         return from(rest.get(url, newParams)).pipe(
-            tap(console.log),
             flatMap(data => from(data.data)),
             map(data => {
                 data['order-id'] = data.id
@@ -347,8 +345,9 @@ export default class Order {
     }
 
 
-    async saveMissedOrders () {
+    async saveMissedOrders (symbol) {
         await from(this.getRecentOrders({
+            symbol,
             size: 1000
         })).pipe(
             map(orders => from(this.saveOrders(orders)))

@@ -1,6 +1,6 @@
 import Sequelize, {Op} from 'sequelize'
 import {from, Subject, of, interval, zip} from 'rxjs';
-import {mergeMap, map, flatMap, toArray, filter, reduce, concatMap, delay, tap, debounceTime, catchError, retry} from 'rxjs/operators'
+import {mergeMap, map, flatMap, toArray, filter, reduce, concatMap, delay, tap, debounceTime, catchError, retry, distinct} from 'rxjs/operators'
 import {cons} from '../base';
 import market from '../service/market';
 import BigNumber from 'bignumber.js';
@@ -140,6 +140,7 @@ export default class Grid {
     addOrderSubscriber (tasks){
         from(tasks).pipe(
             map(task => task.symbol),
+            distinct(),
             toArray(),
             mergeMap(symbols => this.orderService.orderSub(symbols)),
             concatMap(order => zip(of(order), from(this.orderService.saveOrder(order)))),
@@ -191,16 +192,19 @@ export default class Grid {
             mergeMap(orders => from(orders)),
             map(order => order['order-price']),
             reduce((acc, value)=> {
-
-                acc.set(value, '')
+                acc.set(new BigNumber(value).toFixed(8), '')
                 return acc
             }, new Map())
         ).toPromise() 
 
+        getLogger().debug(`cur price: ${curPrice}`)
+        getLogger().debug(`cur order priceses: ${Array.from(orderPrices.keys()).toString()}`)
+
         //check out lack price
         const lackPrices = await from(task['grid-prices'].split(',')).pipe(
-            filter(price => !orderPrices.has(price) &&
+            filter(price => !orderPrices.has(new BigNumber(price).toFixed(8)) &&
              new BigNumber(price).minus(new BigNumber(curPrice)).abs().div(BigNumber.min(curPrice, price)).comparedTo(new BigNumber(task['grid-rate']).div(2)) >= 0),
+            tap(price => getLogger().debug(`price passed filter: ${price}`)),
             map(price => ({
                 price,
                 orderType: new BigNumber(price).comparedTo(curPrice) <=0 
@@ -213,7 +217,7 @@ export default class Grid {
         if (lackPrices.length <= 0) {
             getLogger().warn(`task ${task} has no lack price for it.`)
         } else {
-            getLogger().warn(`task ${task} lack price: ${lackPrices}`)
+            getLogger().warn(`task ${task} lack price: ${lackPrices.map(x => x.price)}`)
         }
 
         

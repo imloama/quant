@@ -1,14 +1,16 @@
-import {Tasks, init} from '../base/types'
 import {filter, mergeMap, take, flatMap, map, reduce, concatMap} from 'rxjs/operators';
 import {getGridPrices, getRate} from './calc'
 
 import BigNumber from 'bignumber.js';
 import {from} from 'rxjs';
 import inquirer from 'inquirer'
-import MarketAPI from '../api/spot_market';
 import config from '../config'
-import AccountAPI from '../api/account';
 import {getSymbolInfo} from '../base/common';
+import Grid from '../strategy/grid';
+import Sequelize from 'sequelize'
+import Account from '../service/account';
+import Auth from '../service/auth';
+import market from '../service/market';
 
 const priceAndAmountPrompt = function priceAndAmountPrompt (symbolInfo, marketInfo){
      //input params
@@ -38,7 +40,7 @@ const priceAndAmountPrompt = function priceAndAmountPrompt (symbolInfo, marketIn
     return inquirer.prompt(promiseArr)
 }
 
-const calcBalance = async function calcBalance (symbol, gridPrices, gridAmount, curPriceStr){
+const calcBalance = async function calcBalance (accountService, symbol, gridPrices, gridAmount, curPriceStr){
     const curPrice = new BigNumber(curPriceStr)
     const needBalanceMap = new Map()
     const symbolInfo = getSymbolInfo(symbol)
@@ -55,12 +57,9 @@ const calcBalance = async function calcBalance (symbol, gridPrices, gridAmount, 
         }
     });
 
-    const balanceMap = await AccountAPI.getAccountInfoByHttp().pipe(
-            flatMap(datas => from(datas)),
-            filter(data => data.type === 'spot'),
-            take(1),
-            map(data => data.id),
-            concatMap(id => AccountAPI.getAccountBalanceByHttp(id)),
+    const account = await accountService.getAccountByType('spot')
+
+    const balanceMap = await from(accountService.getBalance(account)).pipe(
             flatMap(data => from(data.list)),
             filter(data => data.type === 'trade'),
             reduce((acc, value)=>{
@@ -76,13 +75,45 @@ const calcBalance = async function calcBalance (symbol, gridPrices, gridAmount, 
 }
 
 const main = async function main (){
+    //input aws key
+    if(!config.awsParams.key || !config.awsParams.id){
+        config.awsParams.id = await inquirer.prompt({
+            type: 'input',
+            name: 'apiId',
+            message: 'Please input api id:\n'
+        }).then(data => data.apiId)
+
+        config.awsParams.key = await inquirer.prompt({
+            type: 'password',
+            name: 'apiKey',
+            message: 'Please input api key:\n'
+        }).then(data => data.apiKey)
+    }
+
+     //save task into db
+    const sequelize = new Sequelize(config.db.database, config.db.username, config.db.password, {
+        dialect: config.db.type,
+        operatorsAliases: false,
+        logging: false,
+
+        pool: {
+            max: 5,
+            min: 0,
+            acquire: 30000,
+            idle: 10000
+        }
+    });
+    const authService = new Auth(config.awsParams.id, config.awsParams.key)
+    const accountService = new Account(authService)
+    const grid = new Grid(sequelize, authService, null, accountService)
+
 
     const symbolInfo = await from(inquirer.prompt({
         type: 'input',
         name: 'symbol',
         message: 'Please input trade symbol:\n'
     })).pipe(
-        mergeMap(data => MarketAPI.getAllSymbolInfosByHttp().pipe(
+        mergeMap(data => from(market.getAllSymbolInfos()).pipe(
                     mergeMap(symbols => from(symbols)), 
                     filter(symbol => symbol.symbol === data.symbol),
                     take(1)
@@ -90,7 +121,7 @@ const main = async function main (){
             ),
     ).toPromise()
 
-    const curMarketInfo = await MarketAPI.marketMergedDetailByHttp(symbolInfo.symbol).toPromise()
+    const curMarketInfo = await market.getMergedDetail(symbolInfo.symbol)
 
     const inputInfos = await priceAndAmountPrompt(symbolInfo, curMarketInfo)
 
@@ -102,11 +133,9 @@ const main = async function main (){
     inputInfos['grid-prices'] = gridPrices.join(',')
 
     //check account balance enough
-    if(config.awsParams.key) {
-        const result = await calcBalance(inputInfos.symbol, inputInfos['grid-prices'].split(','), inputInfos['grid-amount'], curMarketInfo.close)
-        if(!result){
-            return 'no enough balance'
-        }
+    const result = await calcBalance(accountService, inputInfos.symbol, inputInfos['grid-prices'].split(','), inputInfos['grid-amount'], curMarketInfo.close)
+    if(!result){
+        return 'no enough balance'
     }
 
     const confirm = await inquirer.prompt({
@@ -122,12 +151,9 @@ const main = async function main (){
         return 'Task is canceled'
     }
 
-     //save task into db
-    init()
-
     inputInfos.state = 1
 
-    const data = await Tasks.build(inputInfos)
+    const data = await grid.DBTask.build(inputInfos)
     await data.save()
 
     return 'Task has built successfully'

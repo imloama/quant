@@ -21,7 +21,6 @@ const get = function get (host, params) {
                     return
                 }
 
-                // getLogger('debug').debug(body)
                 resolve(JSON.parse(body))
             })
         })
