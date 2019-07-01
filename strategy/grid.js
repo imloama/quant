@@ -144,7 +144,7 @@ export default class Grid {
             toArray(),
             mergeMap(symbols => this.orderService.orderSub(symbols)),
             concatMap(order => zip(of(order), from(this.orderService.saveOrder(order)))),
-            filter(order => order['order-state'] === cons.OrderState.filled),
+            filter(([order]) => order['order-state'] === cons.OrderState.filled),
             map(([order])=> order['order-id']),
             concatMap(orderID => this.TaskOrderTable.findOne({
                 where: {
