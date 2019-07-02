@@ -7,7 +7,9 @@ import {
 } from './base';
 import {
     tap,
-    delay
+    delay,
+    mergeMap,
+    concatMap
 } from 'rxjs/operators';
 
 import SpotAccount from './connection/spot_pool';
@@ -27,9 +29,31 @@ import Order from './service/order';
 import Sequelize from 'sequelize'
 import Account from './service/account';
 import Grid from './strategy/grid';
+import SpotMarket from './connection/spot_market_pool';
+import KLine from './service/kline';
+import market from './service/market';
 
 
-const main = function main () {
+const main =async function main () {
+    if(!awsParams.key){
+        const promiseArr = [
+            {
+                type: 'input',
+                name: 'id',
+                message: 'Please input api id:\n'
+            },
+            {
+                type: 'password',
+                name: 'key',
+                message: 'Please input api key:\n'
+            }
+        ]
+
+        const data =  await inquirer.prompt(promiseArr)
+        awsParams.id = data.id
+        awsParams.key = data.key
+    }
+
     logger.init()
 
     const sequelize = new Sequelize(db.database, db.username, db.password, {
@@ -47,13 +71,15 @@ const main = function main () {
     // 仅限 SQLite
         storage: db.storage
     });
-
-    //start message pool
+    
+     // start message pool
     const spotAccountPool = new SpotAccount()
     spotAccountPool.start()
 
     const authService = new Auth(awsParams.id, awsParams.key)
+
     const orderService = new Order(sequelize, spotAccountPool, authService)
+
     const accountService = new Account(authService)
 
     const grid = new Grid(sequelize, authService, orderService, accountService) 
@@ -62,29 +88,31 @@ const main = function main () {
         ()=> grid.start(),
         err => getLogger().error(err)
     )
+    
+
+    const marketPool = new SpotMarket();
+    marketPool.start()
+    const klineService = new KLine(marketPool, sequelize)
+
+    from(market.getAllSymbolInfos()).pipe(
+        mergeMap(symbols => from(symbols)),
+        tap(console.log),
+        concatMap(symbol => from(klineService.syncKlineInfo(symbol.symbol, '60min')).pipe(delay(5000)))
+    ).subscribe(
+        ()=>getLogger().info('done')
+    )
+    
+
+    /*
+     * of(1).pipe(
+     *     delay(2000),
+     * ).subscribe(
+     *    ()=>     klineService.syncKlineInfo('btcusdt', '60min') 
+     *    )
+     */
 }
 
-if (awsParams.key) {
-    main()
-} else {
-    const promiseArr = []
-    promiseArr.push({
-        type: 'input',
-        name: 'apiId',
-        message: 'Please input api id:\n'
-    })
-    promiseArr.push({
-        type: 'password',
-        name: 'apiKey',
-        message: 'Please input api key:\n'
-    })
-
-    from(inquirer.prompt(promiseArr)).pipe(
-        tap(data => {
-            awsParams.id = data.apiId
-            awsParams.key = data.apiKey
-        })).subscribe(() => main())
-}
+main()
 
 process.on('uncaughtException', err => {
     getLogger().error(err)
