@@ -1,15 +1,18 @@
 import {
     from,
-    of
+    of,
+    timer
 } from 'rxjs';
 import {
     logger
 } from './base';
 import {
-    tap,
     delay,
     mergeMap,
-    concatMap
+    concatMap,
+    mergeMapTo,
+    filter,
+    map
 } from 'rxjs/operators';
 
 import SpotAccount from './connection/spot_pool';
@@ -94,22 +97,15 @@ const main =async function main () {
     marketPool.start()
     const klineService = new KLine(marketPool, sequelize)
 
-    from(market.getAllSymbolInfos()).pipe(
-        mergeMap(symbols => from(symbols)),
-        tap(console.log),
-        concatMap(symbol => from(klineService.syncKlineInfo(symbol.symbol, '60min')).pipe(delay(5000)))
+    timer(0, 1000*60*30).pipe(
+        mergeMapTo(market.getAllSymbolInfos()),
+        mergeMap(symbols => from(symbols.sort((a, b) => a.symbol.localeCompare(b.symbol)))),
+        filter(info => info.state === 'online'),
+        map(info => info.symbol),
+        concatMap(symbol => from(klineService.syncKlineInfo(symbol, '60min'))),
     ).subscribe(
         ()=>getLogger().info('done')
     )
-    
-
-    /*
-     * of(1).pipe(
-     *     delay(2000),
-     * ).subscribe(
-     *    ()=>     klineService.syncKlineInfo('btcusdt', '60min') 
-     *    )
-     */
 }
 
 main()
