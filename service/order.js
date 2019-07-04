@@ -363,7 +363,8 @@ export default class Order {
                 OrderState.filled,
                 OrderState.canceled
             ]
-        }}})).pipe(
+        },
+            symbol}})).pipe(
             mergeMap(orders => from(orders).pipe(delay(500))),
             concatMap(order => from(this.getOrderDetailInfo(order['order-id']))),
             filter(data => data['order-state'] !== cons.OrderState.submitted),
