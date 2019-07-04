@@ -36,6 +36,7 @@ import Grid from './strategy/grid';
 import SpotMarket from './connection/spot_market_pool';
 import KLine from './service/kline';
 import market from './service/market';
+import {dingding} from './notifier';
 
 
 const main =async function main () {
@@ -57,6 +58,8 @@ const main =async function main () {
         awsParams.id = data.id
         awsParams.key = data.key
     }
+
+    dingding.sendMsg('quant application starting...')
 
     logger.init()
 

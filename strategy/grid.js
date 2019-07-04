@@ -7,6 +7,7 @@ import BigNumber from 'bignumber.js';
 import {getLogger} from 'log4js';
 import {getSymbolInfo} from '../base/common';
 import * as config from '../config'
+import {dingding} from '../notifier';
 
 export default class Grid {
 
@@ -143,6 +144,7 @@ export default class Grid {
             distinct(),
             toArray(),
             mergeMap(symbols => this.orderService.orderSub(symbols)),
+            tap(msg => dingding.sendMsg(msg)),
             concatMap(order => zip(of(order), from(this.orderService.saveOrder(order)))),
             filter(([order]) => order['order-state'] === cons.OrderState.filled),
             map(([order])=> order['order-id']),
