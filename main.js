@@ -19,7 +19,8 @@ import SpotAccount from './connection/spot_pool';
 
 import {
     awsParams,
-    db
+    db,
+    kilne
 } from './config';
 import {
     getLogger
@@ -93,20 +94,22 @@ const main =async function main () {
     )
     
 
-    const marketPool = new SpotMarket();
-    marketPool.start()
-    const klineService = new KLine(marketPool, sequelize)
+    if(kilne.open){
+        const marketPool = new SpotMarket();
+        marketPool.start()
 
-    timer(1000*10, 1000*60*30).pipe(
-        mergeMapTo(market.getAllSymbolInfos()),
-        mergeMap(symbols => from(symbols.sort((a, b) => a.symbol.localeCompare(b.symbol)))),
-        filter(info => info.state === 'online'),
-        map(info => info.symbol),
-        concatMap(symbol => from(klineService.syncKlineInfo(symbol, '60min'))),
-    ).subscribe(
-        ()=>getLogger().info('done'),
-        err => getLogger().error(err)
-    )
+        const klineService = new KLine(marketPool, sequelize)
+        timer(1000*10, kilne.reqInterval).pipe(
+            mergeMapTo(market.getAllSymbolInfos()),
+            mergeMap(symbols => from(symbols.sort((a, b) => a.symbol.localeCompare(b.symbol)))),
+            filter(info => info.state === 'online'),
+            map(info => info.symbol),
+            concatMap(symbol => from(klineService.syncKlineInfo(symbol, '60min'))),
+        ).subscribe(
+            ()=>getLogger().info('done'),
+            err => getLogger().error(err)
+        )
+    }
 }
 
 main()
