@@ -97,14 +97,15 @@ const main =async function main () {
     marketPool.start()
     const klineService = new KLine(marketPool, sequelize)
 
-    timer(0, 1000*60*30).pipe(
+    timer(1000*10, 1000*60*30).pipe(
         mergeMapTo(market.getAllSymbolInfos()),
         mergeMap(symbols => from(symbols.sort((a, b) => a.symbol.localeCompare(b.symbol)))),
         filter(info => info.state === 'online'),
         map(info => info.symbol),
         concatMap(symbol => from(klineService.syncKlineInfo(symbol, '60min'))),
     ).subscribe(
-        ()=>getLogger().info('done')
+        ()=>getLogger().info('done'),
+        err => getLogger().error(err)
     )
 }
 
