@@ -1,6 +1,7 @@
 import Sequelize from 'sequelize'
 import {filter, mergeMap, map, toArray, take, expand, max, reduce, tap} from 'rxjs/operators';
 import {from, zip, Observable, empty, EMPTY, merge, of} from 'rxjs';
+import {getLogger} from 'log4js';
 
 export default class KLine {
     constructor (pool, sequelize){
@@ -101,6 +102,8 @@ export default class KLine {
 
     // 1min, 5min, 15min, 30min, 60min, 1day, 1mon, 1week, 1year
     async syncKlineInfo (symbol, period) {
+        getLogger().debug(`start sync ${symbol}:${period} kline info`)
+        
         const timeRange = await zip(
                 from(this.DBTable.min('ts', {where: {
                     symbol,
