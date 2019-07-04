@@ -59,7 +59,7 @@ const main =async function main () {
         awsParams.key = data.key
     }
 
-    dingding.sendMsg('quant application starting...')
+    dingding.sendMsg({msg: 'quant application starting...'})
 
     logger.init()
 
