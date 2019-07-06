@@ -1,5 +1,5 @@
 import Sequelize from 'sequelize'
-import {filter, mergeMap, map, toArray, take, expand, max, reduce, tap, mapTo, retry, catchError} from 'rxjs/operators';
+import {filter, mergeMap, map, toArray, take, expand, max, reduce, tap, mapTo, retry, catchError, mergeMapTo} from 'rxjs/operators';
 import {from, zip, Observable, empty, EMPTY, merge, of, race, timer, throwError} from 'rxjs';
 import {getLogger} from 'log4js';
 
@@ -101,8 +101,7 @@ export default class KLine {
             ),
             timer(3000).pipe(
                 tap(() => getLogger().warn(`req ${req} failed`)),
-                throwError(`req ${req} timeout`),
-                // mapTo([])
+                mergeMapTo(throwError(`req ${req} timeout`)),
             )
         ).pipe(
             retry(2),
