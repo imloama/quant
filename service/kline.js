@@ -1,6 +1,6 @@
 import Sequelize from 'sequelize'
-import {filter, mergeMap, map, toArray, take, expand, max, reduce, tap} from 'rxjs/operators';
-import {from, zip, Observable, empty, EMPTY, merge, of} from 'rxjs';
+import {filter, mergeMap, map, toArray, take, expand, max, reduce, tap, mapTo, retry, catchError} from 'rxjs/operators';
+import {from, zip, Observable, empty, EMPTY, merge, of, race, timer, throwError} from 'rxjs';
 import {getLogger} from 'log4js';
 
 export default class KLine {
@@ -82,21 +82,31 @@ export default class KLine {
 
         this.pool.send(params)
 
-        return this.pool.messageQueue.pipe(
-            filter(data => data.rep === req && data.id === id),
-             //or it will never end
-            take(1),
-            mergeMap(data => from(data.data)),
-            map(data => {
-                data.ts = data.id
-                Reflect.deleteProperty(data, 'id')
+        return race(
+            this.pool.messageQueue.pipe(
+                filter(data => data.rep === req && data.id === id),
+                //or it will never end
+                take(1),
+                mergeMap(data => from(data.data)),
+                map(data => {
+                    data.ts = data.id
+                    Reflect.deleteProperty(data, 'id')
 
-                data.symbol = symbol
-                data.period = period
+                    data.symbol = symbol
+                    data.period = period
 
-                return data
-            }),
-            toArray(),
+                    return data
+                }),
+                toArray(),
+            ),
+            timer(3000).pipe(
+                tap(() => getLogger().warn(`req ${req} failed`)),
+                throwError(`req ${req} timeout`),
+                // mapTo([])
+            )
+        ).pipe(
+            retry(2),
+            catchError(() => of([]))
         ).toPromise()
     }
 
