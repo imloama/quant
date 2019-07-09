@@ -21,7 +21,12 @@ const get = function get (host, params) {
                     return
                 }
 
-                resolve(JSON.parse(body))
+                try{
+                    resolve(JSON.parse(body))
+                }catch(error){
+                    getLogger().debug(body)
+                    reject(error)
+                }
             })
         })
     )
@@ -44,7 +49,11 @@ const post = function post (host, params, queryParams) {
                     return
                 }
 
-                getLogger().debug(JSON.stringify(body))
+                try{
+                    getLogger().debug(JSON.stringify(body))
+                }catch(error) {
+                    getLogger().debug(body)
+                }
 
                 resolve(body)
             })

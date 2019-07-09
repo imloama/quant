@@ -12,7 +12,8 @@ import {
     concatMap,
     mergeMapTo,
     filter,
-    map
+    map,
+    catchError
 } from 'rxjs/operators';
 
 import SpotAccount from './connection/spot_pool';
@@ -95,7 +96,6 @@ const main =async function main () {
         ()=> grid.start(),
         err => getLogger().error(err)
     )
-    
 
     if(kilne.open){
         const marketPool = new SpotMarket();
@@ -103,20 +103,21 @@ const main =async function main () {
 
         const klineService = new KLine(marketPool, sequelize)
         timer(1000*10, kilne.reqInterval).pipe(
-            mergeMapTo(market.getAllSymbolInfos()),
-            mergeMap(symbols => from(symbols.sort((a, b) => a.symbol.localeCompare(b.symbol)))),
-            filter(info => info.state === 'online'),
-            map(info => info.symbol),
-            concatMap(symbol => from(klineService.syncKlineInfo(symbol, '60min'))),
+            mergeMapTo(from(market.getAllSymbolInfos()).pipe(
+                mergeMap(symbols => from(symbols.sort((a, b) => a.symbol.localeCompare(b.symbol)))),
+                filter(info => info.state === 'online'),
+                map(info => info.symbol),
+                concatMap(symbol => from(klineService.syncKlineInfo(symbol, '1day'))),
+                catchError(err => of(err))
+            ))
         ).subscribe(
-            ()=>getLogger().info('done'),
+            data=>getLogger().info(data),
             err => getLogger().error(err)
         )
     }
 }
 
 main()
-
 process.on('uncaughtException', err => {
     getLogger().error(err)
     of(1).pipe(delay(3000)).subscribe(()=>process.exit(0))
