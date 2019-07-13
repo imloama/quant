@@ -29,6 +29,7 @@ export default class Grid {
         this.taskCheckSubject = new Subject()
 
         this.taskCheckSubject.pipe(
+            tap(() => getLogger().debug('start check task info')),
             debounceTime(1000),
             mergeMap(taskID => from(taskID
                 ? this.DBTask.findAll({
@@ -139,7 +140,11 @@ export default class Grid {
     }
 
     addOrderSubscriber (tasks){
-        from(tasks).pipe(
+        if(this.subscription){
+            this.subscription.unsubscribe()
+        }
+
+        this.subscription = from(tasks).pipe(
             map(task => task.symbol),
             distinct(),
             toArray(),
@@ -244,12 +249,13 @@ export default class Grid {
 
         const account = await this.accountService.getAccountByType('spot');
         const balance = await from(this.accountService.getBalance(account)).pipe(
-            flatMap(data => data.list),
+            flatMap(data => from(data.list)),
             filter(balance => balance.type === 'trade'),
             reduce((acc, value)=> {
                 acc.set(value.currency, value)
                 return acc
-            }, new Map())
+            }, new Map()),
+            tap(data=> getLogger().debug(data))
         ).toPromise()
         
         for(const [

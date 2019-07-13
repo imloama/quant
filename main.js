@@ -107,7 +107,7 @@ const main =async function main () {
                 mergeMap(symbols => from(symbols.sort((a, b) => a.symbol.localeCompare(b.symbol)))),
                 filter(info => info.state === 'online'),
                 map(info => info.symbol),
-                concatMap(symbol => from(klineService.syncKlineInfo(symbol, '1day'))),
+                concatMap(symbol => from(klineService.syncKlineInfo(symbol, '60min'))),
                 catchError(err => of(err))
             ))
         ).subscribe(

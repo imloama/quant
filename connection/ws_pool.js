@@ -11,7 +11,8 @@ import {
     delay,
     mapTo,
     filter,
-    debounceTime
+    debounceTime,
+    tap
 } from 'rxjs/operators';
 
 import {
@@ -33,6 +34,7 @@ export default class WebsocketPool {
         this.responseHeartbeatFunc = responseHeartbeatFunc
 
         this.restartSubject.pipe(
+            tap(data => getLogger().debug(`received a reconnect command:${data}`)),
             debounceTime(aliveCheckInterval/3)
         ).subscribe(() => {
             getLogger().info(`websocket ${this.url} may be disconnected. try reconnect.`)
@@ -56,7 +58,7 @@ export default class WebsocketPool {
         messageObservable.pipe(
             filter(data => data.messageType === 'close')
         ).subscribe(
-           ()=>this.reConnect(),
+           ()=>this.reConnect('closed'),
            cons.EMPTY_ERR_HANDLER 
         )
 
@@ -69,17 +71,18 @@ export default class WebsocketPool {
             this.client.send(JSON.stringify(messaage))
         } catch (err) {
             getLogger().error(err)
-            this.reConnect()
+            this.reConnect('error happens')
         }
     }
 
-    reConnect (){
+    reConnect (signal){
+        getLogger().debug('reconnect ....')
         if(this.heartbeatSubscription){
             this.heartbeatSubscription.unsubscribe()
         }
 
         this.lastReceivedData = ''
-        this.restartSubject.next(2)
+        this.restartSubject.next(signal)
     }
 
     heartbeat (messageObservable) {
@@ -89,7 +92,7 @@ export default class WebsocketPool {
         ).subscribe(
             data => {
                 if (this.lastReceivedData === 'timer' && data === 'timer') {
-                    this.reConnect()
+                    this.reConnect('timeout')
 
                     return
                 }
@@ -100,7 +103,7 @@ export default class WebsocketPool {
             },
             err => {
                 getLogger().error(err)
-                from([1]).pipe(delay(1000 * 5)).subscribe(()=>this.reConnect())
+                from([1]).pipe(delay(1000 * 5)).subscribe(()=>this.reConnect('heartbeat error happens'))
             }
         )
     }

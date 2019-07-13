@@ -100,7 +100,10 @@ export default class KLine {
                 toArray(),
             ),
             timer(3000).pipe(
-                tap(() => getLogger().warn(`req ${req} failed`)),
+                tap(() => {
+                    getLogger().warn(`req ${req} failed`)
+                    this.pool.send(params)
+                }),
                 mergeMapTo(throwError(`req ${req} timeout`)),
             )
         ).pipe(
