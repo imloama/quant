@@ -191,8 +191,11 @@ export default class Order {
     //sub order change
     orderSub (symbols, filterWithSymbol = false) {
         const symbolMap = new Map()
+
         from(symbols).pipe(
-            tap(symbol => symbolMap.set(symbol, true))
+            tap(symbol => symbolMap.set(symbol, true)),
+            // to avoid request too fast error
+            delay(500), 
         ).subscribe(
             symbol => this.pool.send({
                 op: cons.SUB,
