@@ -195,7 +195,7 @@ export default class Order {
         from(symbols).pipe(
             tap(symbol => symbolMap.set(symbol, true)),
             // to avoid request too fast error
-            delay(500), 
+            concatMap(symbol => of(symbol).delay(500)),
         ).subscribe(
             symbol => this.pool.send({
                 op: cons.SUB,
