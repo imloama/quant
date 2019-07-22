@@ -21,7 +21,7 @@ import SpotAccount from './connection/spot_pool';
 import {
     awsParams,
     db,
-    kilne
+    kline
 } from './config';
 import {
     getLogger
@@ -97,12 +97,12 @@ const main =async function main () {
         err => getLogger().error(err)
     )
 
-    if(kilne.open){
+    if(kline.open){
         const marketPool = new SpotMarket();
         marketPool.start()
 
         const klineService = new KLine(marketPool, sequelize)
-        timer(1000*10, kilne.reqInterval).pipe(
+        timer(1000*10, kline.reqInterval).pipe(
             mergeMapTo(from(market.getAllSymbolInfos()).pipe(
                 mergeMap(symbols => from(symbols.sort((a, b) => a.symbol.localeCompare(b.symbol)))),
                 filter(info => info.state === 'online'),

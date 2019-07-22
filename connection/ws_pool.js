@@ -71,7 +71,7 @@ export default class WebsocketPool {
             this.client.send(JSON.stringify(messaage))
         } catch (err) {
             getLogger().error(err)
-            this.reConnect('error happens')
+            // this.reConnect('error happens')
         }
     }
 

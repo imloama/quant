@@ -30,7 +30,7 @@ module.exports = {
 
     messagePoolAliveCheckInterval: 1000 * 40,
 
-    kilne: {
+    kline: {
         open: false,
         reqInterval: 1000 * 30
     },
