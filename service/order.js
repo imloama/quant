@@ -180,7 +180,11 @@ export default class Order {
                     return of(order) 
                 }
 
-                return this.dbTable.update(order)
+                return this.dbTable.update(order, {
+                    where: {
+                        'order-id': order['order-id']
+                    }
+                })
             })
         )
     }
