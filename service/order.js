@@ -166,7 +166,23 @@ export default class Order {
 
     // insert or update
     saveOrder (order){
-        return from(this.dbTable.upsert(order))
+        return from(this.dbTable.findOne({
+            where: {
+                'order-id': order['order-id'] 
+            }
+        })).pipe(
+            map(item => {
+                if(!item) {
+                    return this.dbTable.create(order)
+                }
+
+                if(item['seq-id'] > order['seq-id']){
+                    return of(order) 
+                }
+
+                return this.dbTable.update(order)
+            })
+        )
     }
 
     /**
