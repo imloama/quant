@@ -251,11 +251,15 @@ export default class Grid {
         const balance = await from(this.accountService.getBalance(account)).pipe(
             flatMap(data => from(data.list)),
             filter(balance => balance.type === 'trade'),
+            tap(data => {
+                if(data.balance !== '0'){
+                    console.log(data)
+                }
+            }),
             reduce((acc, value)=> {
                 acc.set(value.currency, value)
                 return acc
             }, new Map()),
-            tap(data=> getLogger().debug(data))
         ).toPromise()
         
         for(const [
