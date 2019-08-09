@@ -176,8 +176,7 @@ export default class Order {
                     return this.dbTable.create(order)
                 }
 
-                getLogger().debug(`old seq id:${item['seq-id']}, new seq id:${order['seq-id']}`)
-                if(item['seq-id'] > order['seq-id']){
+                if(item['seq-id'] && order['seq-id'] && item['seq-id'] > order['seq-id']){
                     return of(order) 
                 }
 
