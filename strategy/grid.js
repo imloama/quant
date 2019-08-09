@@ -205,7 +205,7 @@ export default class Grid {
         ).toPromise() 
 
         getLogger().debug(`cur price: ${curPrice}`)
-        getLogger().debug(`cur order priceses: ${Array.from(orderPrices.keys()).toString()}`)
+        getLogger().debug(`cur order prices: ${Array.from(orderPrices.keys()).toString()}`)
 
         //check out lack price
         const lackPrices = await from(task['grid-prices'].split(',')).pipe(

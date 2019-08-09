@@ -176,6 +176,7 @@ export default class Order {
                     return this.dbTable.create(order)
                 }
 
+                getLogger().debug(`old seq id:${item['seq-id']}, new seq id:${order['seq-id']}`)
                 if(item['seq-id'] > order['seq-id']){
                     return of(order) 
                 }
@@ -368,21 +369,22 @@ export default class Order {
     }
 
 
-    async saveMissedOrders (symbol) {
+    async saveMissedFinishedOrders (symbol) {
         await from(this.getRecentOrders({
             symbol,
             size: 1000
         })).pipe(
-            map(orders => from(this.saveOrders(orders)))
+            flatMap(orders => from(this.saveOrders(orders)))
         ).toPromise()
     }
 
     async syncOrderInfo (symbol){
-        getLogger().info('sync order info...')
+        getLogger().info(`sync ${symbol} order info...`)
 
-        //update order state
+        //middle state
         await from(this.loadOrdersFromDB({where: {'order-state': {
-            [Op.notIn]: [
+            [Op.notIn]: [ 
+                OrderState.submitted,
                 OrderState.filled,
                 OrderState.canceled
             ]
@@ -395,7 +397,12 @@ export default class Order {
             mergeMap(orders => from(this.saveOrders(orders)))
         ).toPromise()
 
-        // find all orders
-        await this.saveMissedOrders(symbol)
+        //open orders
+        await from(this.getOpenOrders(symbol)).pipe(
+               flatMap(orders => from(this.saveOrders(orders))) 
+        ).toPromise() 
+
+        //finished orders in last two days 
+        await this.saveMissedFinishedOrders(symbol)
     }
 }
